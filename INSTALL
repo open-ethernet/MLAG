@@ -79,7 +79,7 @@ Then do the following steps :
 
     1. Enter mlnx_lib directory and build libraries :
         1.1  run ./autogen.sh
-        1.2  run ./configure --with-oes=/home/OES
+        1.2  run ./configure --with-oes=$PWD/../OES
         1.3  cd into sx_complib 
         1.4  run ./autogen.sh
         1.5  run ./configure 
@@ -99,9 +99,9 @@ Then do the following steps :
     4. Enter mlag directory and build mlag executable :
         4.1  run ./autogen.sh
         4.2  run ./configure --with-sxcomplib=/usr/local/ --with-mlnx-lib=/usr/local/ --with-fsmlib=/usr/local/ 
-             --with-oes=/home/OES --with-oes-lib-path=/usr/local/lib/ --with-oes-lib-name=oesstub
+             --with-oes=$PWD/../OES --with-oes-lib-path=/usr/local/lib/ --with-oes-lib-name=oesstub
              --with-ctrl-learn-hal-lib-path=/usr/local/lib/ --with-ctrl-learn-hal-lib-name=ctrllearnhalstub 
-             --with-sl-lib-path=/home/mlag/src/libs/service_layer/.libs/ --with-sl-lib-name=servicelayer
+             --with-sl-lib-path=$PWD/src/libs/service_layer/.libs/ --with-sl-lib-name=servicelayer
         4.3  run make && make install
 
 Running the mLAG process
