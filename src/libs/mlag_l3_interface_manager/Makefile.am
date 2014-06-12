@@ -23,6 +23,6 @@ libl3interface_la_LIBADD= -L../mlag_common/.libs/ -lmlagcommon \
 			-L$(SX_COMPLIB_PATH)/lib/ -lsxcomp -lsxlog \
 			-L$(MLNX_LIB_PATH)/lib -leventdisp -lcommu \
 		 	-L../mlag_master_election/.libs/ -lmasterelection \
-		    -L../mlag_l3_interface_manager/.libs/ -lmlagmgr \
+		    -L../mlag_manager/.libs/ -lmlagmgr \
 		    -L$(SL_LIB_PATH_FULL_PREFIX) -l${SL_LIB_NAME_FULL_PREFIX} \
 			-ldl
