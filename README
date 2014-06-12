@@ -1,5 +1,106 @@
 MLAG - Multi-chassis link aggregation
 -------------------------------------
 
-mLAG SW implementation is given under BSD license.
+    -------------                         -------------
+    | switch A  | --------- IPL --------- | switch B  |
+    -------------                         -------------
+          \ (              MLAG              ) /
+           \                                  /
+            \                                /
+             \                              /
+              \                            /
+               \                          /
+                \                        /
+                 \ (       Bond       ) /
+                  \                    /
+                 ------------------------
+                 |    Host \ Switch     |
+                 ------------------------
+
+				 
+MLAG extends the implementation of LAG beyond a single device to provide
+another level of redundancy that extends from link-level to the node level.
+The current implementation of MLAG only supports 2 switches. Future versions
+will support more than 2 switches, thus enabling scale-out of L2 domain 
+without impacting performance.
+A peered device connecting to switches running an MLAG runs a standard LAG and
+is unaware of the fact the LAG connects to two separate switches.
+MLAG switches share an inter-peer link (IPL) between them for carrying protocol
+messages in a steady state or data packages in failure scenarios.
+
+
+MLAG API and configuration flow
+-------------------------------
+
+MLAG SW package comes with an implementation of an API library.
+The API header files are found at mlag/include directory.
+A user wishing to configure and operate the MLAG SW should
+write code for MLAG APIs instrumentation.
+The following describes a valid configuration flow of MLAG using
+MLAG API:
+
+1.  mlag_api_fdb_init 
+    - Initialize the control learning library.
+    IN: bridge_id [example: 0]
+    IN: logging_cb [example: NULL/pointer to function]
+
+2.  mlag_api_fdb_start 
+    - Start the control learning library. It starts listening to FDB events.
+
+3.  mlag_api_port_set 
+    - Add mlag port. This API should be called per each port
+    IN: command [example: ACCESS_CMD_ADD]
+    IN: port_id [example: 5]
+
+4.  mlag_api_ipl_set 
+    - Create an IPL.
+    IN: command [example: ACCESS_CMD_CREATE]
+    OUT: ipl_id [example: the api will assign ipl_id with value 1]
+
+5.  mlag_api_ipl_port_set 
+    - Bind port to an IPL.
+    IN: command [example: ACCESS_CMD_ADD]
+    IN: ipl_id [example: 1, The ipl_id given in previous API call]
+    IN: port_id [example: 7] 
+
+6.  mlag_api_ipl_ip_set 
+    - Set the local and peer IP addresses for an IPL. The IP is referring to the IPL interface vlan.
+    IN: command [example: ACCESS_CMD_ADD]
+    IN: ipl_id [example: 1]
+    IN vlan_id [example: 4]
+    IN: local_ipl_ip_addr [example: 4.4.4.1]
+    IN: peer_ipl_ip_addr [example: 4.4.4.2]
+
+7.  mlag_api_start 
+    - Enable the mlag protocol.
+    IN: system_id [example: machine MAC]
+    IN: struct mlag_params [example: mlag_params.stp_enable = 0, mlag_params.lacp_enable = 0, mlag_params.igmp_enable = 1]
+
+8.  mlag_api_ports_state_change_notify 
+    - Notify on ports operational state changes.
+    IN: struct port_state pointer, ports_arr [example: mlag_ports[0].port_id = 1, mlag_ports[0].port_state = OES_PORT_UP]
+    IN: ports_arr_cnt [example: 1]
+    
+9.  mlag_api_vlans_state_change_notify 
+    - Notify on vlans state changes. Invoke on all vlans.
+      Vlan is considered as up if one member port is up, excluding IPL.
+      Vlan considered as down if all the member ports of the vlan down, excluding IPL.
+
+    IN: struct vlan_state_info pointer, vlans_arr [example: vlans_arr[0].vlan_id = 1, vlans_arr[0].vlan_state = VLAN_UP …]
+    IN: vlans_arr_cnt [example: number of the vlans]
+
+10. mlag_api_mgmt_peer_state_notify 
+    - Notify on peer management connectivity state changes.
+    IN: peer_system_id [example: peer MAC]
+    IN: mgmt_state [example: MGMT_UP]
+
+11. mlag_api_vlans_state_change_sync_finish_notify 
+    - Notify on vlans state change sync done.
+
+
+License information
+-------------------
+	
+MLAG SW implementation is given under BSD license.
+
 
