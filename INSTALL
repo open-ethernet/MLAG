@@ -1,0 +1,118 @@
+           How to Install the mLAG SW package
+           ==================================
+
+This document describes how to build, install and run mLAG on a
+Linux host. This procedure was successfully performed
+on the following environment :
+
+    - Red Hat Enterprise Linux Server release 6.2 (Santiago)
+
+Build Requirements
+------------------
+
+To compile the user-space programs in the mLAG distribution,
+you will need the following software:
+
+    - GNU make.
+
+    - The GNU C compiler. We used gcc version 4.4.6
+	
+    - GNU Autoconf version 2.63 or later.
+
+    - GNU Automake version 1.11 or later.
+
+
+Installation Requirements
+-------------------------
+
+The machine on which mLAG process is to run must have the
+following libraries:
+
+    - libc compatible with the libc used for build.
+	
+    - libdl
+	
+    - libpthread
+	
+	
+Pre-fetched repositories
+------------------------
+
+The mLAG SW package relies on the use of the open source SW listed below :
+
+    - FSM-tool
+	
+        This was used for FSM implementation within mLAG code.
+        Available at https://github.com/evgenyi1/FSM-tool 
+	
+    - OES (Open Ethernet switch API)
+	
+        Available at https://github.com/open-ethernet/OES
+	
+    - MLNX-LIBS
+	
+        A set of infrastructure libraries by Mellanox Technologies Ltd.
+        Available at https://github.com/Mellanox/mlnx_lib
+	
+    - mLAG
+	
+        mLAG protocol SW components, contained in the same git
+        which includes this file.
+	
+
+Building and Installing mLAG
+----------------------------
+
+First, make sure you have all the required repositories, organized as follows:
+
+    /home
+        mlag
+        FSM-tool
+        OES
+        mlnx_lib
+            sx-complib
+            libctrllearn
+            libeventdisp
+            libcommu
+			
+Then do the following steps :
+
+    1. Enter mlnx_lib directory and build libraries :
+        1.1  run ./autogen.sh
+        1.2  run ./configure --with-oes=/home/OES
+        1.3  cd into sx_complib 
+        1.4  run ./autogen.sh
+        1.5  run ./configure 
+        1.6  run make && make install
+        1.8  cd back to mlnx_lib directory
+        1.9  run make && make install
+		
+    2. Enter FSM-tool directory and build libraries :
+        2.1  run ./autogen.sh
+        2.2  run ./configure 
+        2.3  run make && make install
+		
+    3. Enter OES directory and build OES stub :
+        3.1  cd OES
+        3.2  run make && make install
+		
+    4. Enter mlag directory and build mlag executable :
+        4.1  run ./autogen.sh
+        4.2  run ./configure --with-sxcomplib=/usr/local/ --with-mlnx-lib=/usr/local/ --with-fsmlib=/usr/local/ 
+             --with-oes=/home/OES --with-oes-lib-path=/usr/local/lib/ --with-oes-lib-name=oesstub
+             --with-ctrl-learn-hal-lib-path=/usr/local/lib/ --with-ctrl-learn-hal-lib-name=ctrllearnhalstub 
+             --with-sl-lib-path=/home/mlag/src/libs/service_layer/.libs/ --with-sl-lib-name=servicelayer
+        4.3  run make && make install
+
+Running the mLAG process
+------------------------
+
+Once build is done, mLag process can run by just typing mlag in the command line.
+In order to make configurations to the process one needs to create a c program that will
+use the mLAG API library - libmlagapi.
+
+Bug Reporting
+-------------
+
+Please report problems to nird@mellanox.com or support@mellanox.com
+

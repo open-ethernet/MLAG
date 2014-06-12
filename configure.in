@@ -1,0 +1,190 @@
+
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT([mlag], [3.0.0000])
+AC_CONFIG_SRCDIR([])
+
+dnl use local config dir for extras
+AC_CONFIG_AUX_DIR(config)
+
+dnl we use auto cheader
+AM_CONFIG_HEADER(config.h)
+
+dnl Defines the Language - we need gcc linker ...
+AC_LANG_C
+
+dnl Auto make
+AM_INIT_AUTOMAKE
+
+dnl Provides control over re-making of all auto files
+AM_MAINTAINER_MODE
+
+# this must come before AC_PROG_CC
+if test -z "$CFLAGS"; then
+   # if CFLAGS is not set, we preset it to -O0
+   # with this setting, we prevent autoconf from defaulting to "-g -O2"
+   export CFLAGS=-O0
+fi
+
+dnl Required for cases make defines a MAKE=make ??? Why
+AC_PROG_MAKE_SET
+
+dnl Checks for programs.
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_CC
+
+dnl We will use libtool for making ...
+AC_PROG_LIBTOOL
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([sys/types.h stdio.h stdlib.h string.h])
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_STDBOOL
+AC_C_CONST
+AC_C_INLINE
+
+dnl Checks for library functions.
+#AC_CHECK_FUNCS([strchr strstr strtol strtoull regcomp regexec])
+
+dnl Define an input config option to control debug compile
+AC_ARG_ENABLE(debug,
+[  --enable-debug    Turn on debugging],
+[case "${enableval}" in
+	yes) debug=true ;;
+	no)  debug=false ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+esac],[debug=false])
+AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
+
+dnl Define an input config option to control complib path
+AC_ARG_WITH(sxcomplib,
+[  --with-sxcomplib=<dir> define compatibility library directory],
+AC_MSG_NOTICE(Using compatibility library from:$with_sxcomplib),
+with_sxcomplib="none")
+SX_COMPLIB_PATH=
+if test "x$with_sxcomplib" != xnone; then
+  SX_COMPLIB_PATH=$with_sxcomplib
+fi
+AC_SUBST(SX_COMPLIB_PATH)
+
+dnl Define additional LDADDS
+AC_ARG_WITH(extra_mlag_ldadds,
+[  --with-extra-mlag-ldadds=<libs> define mlag additional libraries],
+AC_MSG_NOTICE(Using mlag LDADDS : $with_extra_mlag_ldadds),
+with_extra_mlag_ldadds="none")
+EXTRA_MLAG_LDADD=
+if test "x$with_extra_mlag_ldadds" != xnone; then
+  EXTRA_MLAG_LDADD=$with_extra_mlag_ldadds
+fi
+AC_SUBST(EXTRA_MLAG_LDADD)
+
+CFLAGS_MLAG_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused"
+AC_SUBST(CFLAGS_MLAG_COMMON)
+
+dnl Define an input config option to control mlnx lib path
+AC_ARG_WITH(mlnx_lib,
+[  --with-mlnxlib=<dir> define mlnx library directory],
+AC_MSG_NOTICE(Using mlnx library from:$with_mlnx_lib),
+with_mlnx_lib="none")
+MLNX_LIB_PATH=
+if test "x$with_mlnx_lib" != xnone; then
+  MLNX_LIB_PATH=$with_mlnx_lib
+fi
+AC_SUBST(MLNX_LIB_PATH)
+
+dnl Define an input config option to control mlnx lib path
+AC_ARG_WITH(fsmlib,
+[  --with-fsmlib=<dir> define fsm library directory],
+AC_MSG_NOTICE(Using fsm library from:$with_fsmlib),
+with_fsmlib="none")
+FSM_LIB_PATH=
+if test "x$with_fsmlib" != xnone; then
+  FSM_LIB_PATH=$with_fsmlib
+fi
+AC_SUBST(FSM_LIB_PATH)
+
+dnl Define an input config option to control OES path
+AC_ARG_WITH(oes,
+[  --with-oes=<dir> define oes header files directory],
+AC_MSG_NOTICE(Using oes library from:$with_oes),
+with_oes="none")
+OES_PATH=
+if test "x$with_oes" != xnone; then
+  OES_PATH=$with_oes
+fi
+AC_SUBST(OES_PATH)
+
+dnl Define an input config option to control OES lib path
+AC_ARG_WITH(oes_lib_path,
+[  --with-oes-lib-path=<dir> define oes library directory],
+AC_MSG_NOTICE(Using oes library from path:$with_oes_lib_path),
+with_oes_lib_path="none")
+OES_LIB_PATH_FULL_PREFIX=
+if test "x$with_oes_lib_path" != xnone; then
+  OES_LIB_PATH_FULL_PREFIX=$with_oes_lib_path
+fi
+AC_SUBST(OES_LIB_PATH_FULL_PREFIX)
+
+dnl Define an input config option to control OES lib name
+AC_ARG_WITH(oes_lib_name,
+[  --with-oes-lib-name=<dir> define oes library name],
+AC_MSG_NOTICE(Using oes library name:$with_oes_lib_name),
+with_oes_lib_name="none")
+OES_LIB_NAME_FULL_PREFIX=
+if test "x$with_oes_lib_name" != xnone; then
+  OES_LIB_NAME_FULL_PREFIX=$with_oes_lib_name
+fi
+AC_SUBST(OES_LIB_NAME_FULL_PREFIX)
+
+dnl Define an input config option to control Ctrl Learn Hal lib path
+AC_ARG_WITH(ctrl_learn_hal_lib_path,
+[  --with-ctrl-learn-hal-lib-path=<dir> define ctrl learn hal library directory],
+AC_MSG_NOTICE(Using ctrl learn hal library from path:$with_ctrl_learn_hal_lib_path),
+with_ctrl_learn_hal_lib_path="none")
+CTRL_LEARN_HAL_LIB_PATH_FULL_PREFIX=
+if test "x$with_ctrl_learn_hal_lib_path" != xnone; then
+  CTRL_LEARN_HAL_LIB_PATH_FULL_PREFIX=$with_ctrl_learn_hal_lib_path
+fi
+AC_SUBST(CTRL_LEARN_HAL_LIB_PATH_FULL_PREFIX)
+
+dnl Define an input config option to control Ctrl Learn Hal lib name
+AC_ARG_WITH(ctrl_learn_hal_lib_name,
+[  --with-ctrl-learn-hal-lib-name=<dir> define ctrl learn ha library name],
+AC_MSG_NOTICE(Using ctrl learn hal library name:$with_ctrl_learn_hal_lib_name),
+with_ctrl_learn_hal_lib_name="none")
+CTRL_LEARN_HAL_LIB_NAME_FULL_PREFIX=
+if test "x$with_ctrl_learn_hal_lib_name" != xnone; then
+  CTRL_LEARN_HAL_LIB_NAME_FULL_PREFIX=$with_ctrl_learn_hal_lib_name
+fi
+AC_SUBST(CTRL_LEARN_HAL_LIB_NAME_FULL_PREFIX)
+
+dnl Define an input config option to service-layer lib path
+AC_ARG_WITH(sl_lib_path,
+[  --with-sl-lib-path=<dir> define sl library directory],
+AC_MSG_NOTICE(Using sl library from path:$with_sl_lib_path),
+with_sl_lib_path="none")
+SL_LIB_PATH_FULL_PREFIX=
+if test "x$with_sl_lib_path" != xnone; then
+  SL_LIB_PATH_FULL_PREFIX=$with_sl_lib_path
+fi
+AC_SUBST(SL_LIB_PATH_FULL_PREFIX)
+
+dnl Define an input config option to service-layer lib name
+AC_ARG_WITH(sl_lib_name,
+[  --with-sl-lib-name=<dir> define sl library name],
+AC_MSG_NOTICE(Using sl library name:$with_sl_lib_name),
+with_sl_lib_name="none")
+SL_LIB_NAME_FULL_PREFIX=
+if test "x$with_sl_lib_name" != xnone; then
+  SL_LIB_NAME_FULL_PREFIX=$with_sl_lib_name
+fi
+AC_SUBST(SL_LIB_NAME_FULL_PREFIX)
+
+CFLAGS_MLAG_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused"
+AC_SUBST(CFLAGS_MLAG_COMMON)
+
+dnl Create the following Makefiles
+AC_OUTPUT([Makefile src/libs/mlag_common/Makefile src/libs/mlag_topology/Makefile src/libs/health_manager/Makefile src/libs/port_manager/Makefile src/libs/mlag_manager/Makefile src/libs/mlag_master_election/Makefile src/libs/mlag_l3_interface_manager/Makefile src/libs/mlag_mac_sync/Makefile src/libs/mlag_internal_api/Makefile src/libs/service_layer/Makefile src/libs/mlag_tunneling/Makefile src/api/Makefile src/Makefile ])
+
