@@ -34,7 +34,15 @@ following libraries:
 	
     - libpthread
 	
-	
+Install script
+-------------------------
+
+To simplify installation, a script named install_mlag.sh is provided.
+The script fetches the required	repositories and builds the mlag libraries 
+and binaries.
+If you choose to run the script, you may skip to 'Running the mLAG process'
+section below and continue from there.
+
 Pre-fetched repositories
 ------------------------
 
