@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_MANAGER_H_
 #define MLAG_MANAGER_H_
@@ -68,9 +68,10 @@ enum peering_sync_type {
     L3_PEER_SYNC = 2,
     IGMP_PEER_SYNC = 4,
     MAC_PEER_SYNC = 8,
+    LACP_PEER_SYNC = 16,
 
     ALL_PEER_SYNC = (PORT_PEER_SYNC | MAC_PEER_SYNC |
-                     IGMP_PEER_SYNC | L3_PEER_SYNC)
+                     IGMP_PEER_SYNC | L3_PEER_SYNC | LACP_PEER_SYNC)
 };
 
 enum stop_done_type {

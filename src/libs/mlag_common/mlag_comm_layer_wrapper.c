@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_timer.h>
@@ -45,22 +45,26 @@
 /************************************************
  *  Local Defines
  ***********************************************/
-#define WRAPPER_INC_CNT(wrapper, cnt){if (cnt < WRAPPER_LAST_COUNTER) { \
+#define WRAPPER_INC_CNT(wrapper, cnt){if (cnt < WRAPPER_LAST_COUNTER) {       \
                                           (wrapper->counters.counter[cnt])++; \
                                       } }
-#define WRAPPER_CLR_CNT(wrapper, cnt){if (cnt < WRAPPER_LAST_COUNTER) { \
+#define WRAPPER_CLR_CNT(wrapper, cnt){if (cnt < WRAPPER_LAST_COUNTER) {       \
                                           wrapper->counters.counter[cnt] = 0; \
                                       } }
 #define DEFAULT_RECONNECT_MSEC 500
 
-#define SOCKET_LOCK(comm_layer_data) \
-    if (comm_layer_data->protect_socket == SOCKET_PROTECTION) { \
-        cl_plock_acquire(&(comm_layer_data->socket_mutex)); \
+#define SOCKET_LOCK(comm_layer_data)                                  \
+    if (comm_layer_data->protect_socket == SOCKET_PROTECTION) {       \
+    	 err = pthread_mutex_lock(&(comm_layer_data->socket_mutex));  \
+         MLAG_BAIL_ERROR_MSG(err, "Failed to lock socket mutex\n");   \
+        /*cl_plock_acquire(&(comm_layer_data->socket_mutex));*/       \
     }
 
-#define SOCKET_UNLOCK(comm_layer_data) \
-    if (comm_layer_data->protect_socket == SOCKET_PROTECTION) { \
-        cl_plock_release(&(comm_layer_data->socket_mutex)); \
+#define SOCKET_UNLOCK(comm_layer_data)                                \
+    if (comm_layer_data->protect_socket == SOCKET_PROTECTION) {       \
+        err = pthread_mutex_unlock(&(comm_layer_data->socket_mutex)); \
+        MLAG_BAIL_ERROR_MSG(err, "Failed to unlock socket mutex\n");  \
+        /*cl_plock_release(&(comm_layer_data->socket_mutex));*/       \
     }
 
 /************************************************
@@ -164,12 +168,9 @@ mlag_comm_layer_wrapper_init(
     comm_layer_data->reconnect_timer_started = 0;
     comm_layer_data->protect_socket = protect_socket;
     if (comm_layer_data->protect_socket == SOCKET_PROTECTION) {
-        cl_status_t cl_err;
-        /* Create mutex to protect the socket */
-        cl_err = cl_plock_init(&(comm_layer_data->socket_mutex));
-        if (cl_err != CL_SUCCESS) {
+        if (pthread_mutex_init(&(comm_layer_data->socket_mutex), NULL) < 0) {
             err = -EIO;
-            MLAG_BAIL_ERROR_MSG(err, "Failed to init mutex, err = %d\n", err);
+            MLAG_BAIL_ERROR_MSG(err, "Failed to init mutex\n");
         }
     }
 
@@ -190,11 +191,19 @@ int
 mlag_comm_layer_wrapper_deinit(
     struct mlag_comm_layer_wrapper_data *comm_layer_data)
 {
+    int err = 0;
+
     if (comm_layer_data->protect_socket == SOCKET_PROTECTION) {
-        cl_plock_destroy(&(comm_layer_data->socket_mutex));
+        /*cl_plock_destroy(&(comm_layer_data->socket_mutex));*/
+        err = pthread_mutex_destroy(&(comm_layer_data->socket_mutex));
+        if (err != 0) {
+            MLAG_LOG(MLAG_LOG_ERROR,
+                    "Failed to destroy socket mutex, err(%d): %s\n",
+                    errno, strerror(errno));
+        }
     }
 
-    return 0;
+    return err;
 }
 
 /**
@@ -234,17 +243,17 @@ mlag_comm_layer_wrapper_start(
         err = comm_lib_tcp_server_session_start(params, &clbk_st,
                                                 &comm_layer_data->tcp_server_id);
         SOCKET_UNLOCK(comm_layer_data);
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Failed to start TCP server session on tcp port %d and dest ip 0x%08x\n",
-    			htons(comm_layer_data->tcp_port),
-    			htonl(comm_layer_data->dest_ip_addr));
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to start TCP server session on tcp port %d and dest ip 0x%08x\n",
+                            htons(comm_layer_data->tcp_port),
+                            htonl(comm_layer_data->dest_ip_addr));
     }
     else if (comm_layer_data->current_switch_status == SLAVE) {
         /* Retrieve Master peer ip addr by Master peer id */
         err = mlag_manager_db_peer_ip_from_mlag_id_get(
             MASTER_PEER_ID, &peer_ip_addr);
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Failed to get ip address of master peer from mlag manager database\n");
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to get ip address of master peer from mlag manager database\n");
 
         MLAG_LOG(MLAG_LOG_NOTICE,
                  "TCP client session start with master for ip address 0x%08x and tcp port %d\n",
@@ -260,10 +269,10 @@ mlag_comm_layer_wrapper_start(
         err =
             comm_lib_tcp_client_non_blocking_start(&conn_info, &clbk_st, NULL);
         SOCKET_UNLOCK(comm_layer_data);
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Failed to start TCP client session with tcp port %d dest ip 0x%08x\n",
-    			htons(comm_layer_data->tcp_port),
-    			htonl(comm_layer_data->dest_ip_addr));
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to start TCP client session with tcp port %d dest ip 0x%08x\n",
+                            htons(comm_layer_data->tcp_port),
+                            htonl(comm_layer_data->dest_ip_addr));
     }
 
     mlag_comm_layer_wrapper_counters_clear(comm_layer_data);
@@ -295,6 +304,7 @@ tcp_conn_stop(struct mlag_comm_layer_wrapper_data *comm_layer_data,
               int peer_id)
 {
     int err = 0;
+    int is_locked = 0;
 
     if (comm_layer_data->tcp_sock_handle[peer_id]) {
         MLAG_LOG(MLAG_LOG_NOTICE,
@@ -302,9 +312,10 @@ tcp_conn_stop(struct mlag_comm_layer_wrapper_data *comm_layer_data,
                  comm_layer_data->tcp_sock_handle[peer_id]);
 
         SOCKET_LOCK(comm_layer_data);
+        is_locked = 1;
+
         err = comm_lib_tcp_peer_stop(
             comm_layer_data->tcp_sock_handle[peer_id]);
-        SOCKET_UNLOCK(comm_layer_data);
         MLAG_BAIL_ERROR_MSG(err, "Failed to stop TCP client session\n");
 
         /* Delete fd from message dispatcher */
@@ -313,9 +324,15 @@ tcp_conn_stop(struct mlag_comm_layer_wrapper_data *comm_layer_data,
                 comm_layer_data->tcp_sock_handle[peer_id], COMM_FD_DEL);
         }
         comm_layer_data->tcp_sock_handle[peer_id] = 0;
+
+        SOCKET_UNLOCK(comm_layer_data);
+        is_locked = 0;
     }
 
 bail:
+    if (is_locked) {
+    	SOCKET_UNLOCK(comm_layer_data);
+    }
     return err;
 }
 
@@ -334,11 +351,13 @@ mlag_comm_layer_wrapper_stop(
 {
     int err = 0;
     int i;
-    handle_t handle_array;
+    handle_t handle_array[MAX_CONNECTION_NUM];
 
     MLAG_LOG(MLAG_LOG_NOTICE,
-             "Communication layer wrapper stop for tcp port %d\n",
-             comm_layer_data->tcp_port);
+             "Communication layer wrapper stop for tcp port %d , role %d, cause %d\n",
+             comm_layer_data->tcp_port,
+             comm_layer_data->current_switch_status,
+             cause);
 
     if (comm_layer_data->current_switch_status == MASTER) {
         if ((cause == SERVER_STOP) &&
@@ -356,8 +375,8 @@ mlag_comm_layer_wrapper_stop(
             SOCKET_LOCK(comm_layer_data);
             err = comm_lib_tcp_server_session_stop(
                 comm_layer_data->tcp_server_id,
-                &handle_array,
-                sizeof(handle_array));
+                handle_array,
+                MAX_CONNECTION_NUM);
             SOCKET_UNLOCK(comm_layer_data);
             MLAG_BAIL_ERROR_MSG(err,
                                 "Failed TCP server stop for server id %d, err=%d\n",
@@ -369,16 +388,16 @@ mlag_comm_layer_wrapper_stop(
         else if (cause == PEER_STOP) {
             err = tcp_conn_stop(comm_layer_data, peer_id);
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed in peer stop on master, err=%d\n",
-            		err);
+                                "Failed in peer stop on master, err=%d\n",
+                                err);
         }
     }
     else {
         for (i = 0; i < MLAG_MAX_PEERS; i++) {
             err = tcp_conn_stop(comm_layer_data, i);
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed in peer stop on slave, err=%d\n",
-            		err);
+                                "Failed in peer stop on slave, err=%d\n",
+                                err);
         }
         if (comm_layer_data->is_started) {
             if (comm_layer_data->reconnect_timer_started) {
@@ -450,6 +469,7 @@ mlag_comm_layer_wrapper_message_dispatcher(int fd,
     struct addr_info ad_info;
     struct recv_payload_data payload_data;
     int peer_id;
+    int is_locked = 0;
 
     MLAG_LOG(MLAG_LOG_INFO,
              "Received message from communication library\n");
@@ -463,22 +483,24 @@ mlag_comm_layer_wrapper_message_dispatcher(int fd,
 
     /* Check on connection failure */
     if (err) {
-        if ((err == -ECONNRESET) || (err == -ENOTCONN)) {
-            /* Connection failure */
+        if ((err == -ECONNRESET) || (err == -ENOTCONN) ||
+        		(err == -ETIMEDOUT)) {
+            /* Connection failure, ECONNRESET=104 ENOTCONN=107 ETIMEDOUT=110*/
             MLAG_LOG(MLAG_LOG_NOTICE,
-                     "Connection failure on handle %d, tcp port %d, ip address 0x%08x\n",
-                     fd, ntohs(ad_info.port), ntohl(ad_info.ipv4_addr));
+                     "Connection failure on tcp receive blocking: handle %d, tcp port %d, ip address 0x%08x, err %d\n",
+                     fd, ntohs(ad_info.port), ntohl(ad_info.ipv4_addr), err);
 
             /* Retrieve peer id by peer ip addr */
             err = mlag_manager_db_mlag_peer_id_get(
                 ntohl(ad_info.ipv4_addr), &peer_id);
-        	MLAG_BAIL_ERROR_MSG(err,
-        			"Failed to get peer id by peer ip address 0x%08x from mlag manager database\n",
-        			ntohl(ad_info.ipv4_addr));
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed to get peer id by peer ip address 0x%08x from mlag manager database\n",
+                                ntohl(ad_info.ipv4_addr));
 
             SOCKET_LOCK(comm_layer_data);
+            is_locked = 1;
+
             err = comm_lib_tcp_peer_stop(fd);
-            SOCKET_UNLOCK(comm_layer_data);
             MLAG_BAIL_ERROR_MSG(err, "Failed to stop TCP session\n");
 
             comm_layer_data->tcp_sock_handle[peer_id] = 0;
@@ -488,20 +510,26 @@ mlag_comm_layer_wrapper_message_dispatcher(int fd,
                 comm_layer_data->add_fd_handler(fd, COMM_FD_DEL);
             }
 
+            SOCKET_UNLOCK(comm_layer_data);
+            is_locked = 0;
+
             /* Try to re-connect from the Slave side */
-            if (comm_layer_data->current_switch_status == SLAVE) {
+            if (comm_layer_data->current_switch_status == SLAVE &&
+            	err != -ETIMEDOUT) {
                 tcp_conn_start(comm_layer_data);
             }
         }
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Failed in communication library TCP receive\n");
+        MLAG_BAIL_ERROR_MSG(
+                err,
+                "Failed in communication library TCP receive blocking: handle %d, tcp port %d, ip address 0x%08x, err %d\n",
+                fd, ntohs(ad_info.port), ntohl(ad_info.ipv4_addr), err);
         goto bail;
     }
 
     /* Handle receive message */
     if (payload_data.msg_num_recv != 1) {
         MLAG_LOG(MLAG_LOG_ERROR,
-                 "communication library TCP receive returned number packets not equal to 1: handle %d tcp port %d ip address 0x%08x\n",
+                 "communication library TCP receive blocking returned number packets not equal to 1: handle %d tcp port %d ip address 0x%08x\n",
                  fd, ntohs(ad_info.port), ntohl(ad_info.ipv4_addr));
         goto bail;
     }
@@ -527,6 +555,9 @@ mlag_comm_layer_wrapper_message_dispatcher(int fd,
     }
 
 bail:
+    if (is_locked) {
+    	SOCKET_UNLOCK(comm_layer_data);
+    }
     return 0;
 }
 
@@ -666,8 +697,8 @@ mlag_comm_layer_wrapper_connection_notification(
         }
 
         MLAG_LOG(MLAG_LOG_NOTICE,
-                "TCP connection established on ip address 0x%08x, tcp port %d, peer_id %d, new_handle %d\n",
-                ntohl(ipv4_addr), ntohs(port), peer_id, new_handle);
+                 "TCP connection established on ip address 0x%08x, tcp port %d, peer_id %d, new_handle %d\n",
+                 ntohl(ipv4_addr), ntohs(port), peer_id, new_handle);
 
         comm_layer_data->tcp_sock_handle[peer_id] = new_handle;
 
@@ -702,6 +733,8 @@ message_send(struct mlag_comm_layer_wrapper_data *comm_layer_data,
 {
     int err = 0;
     uint32_t payload_len_sent = payload_len;
+    handle_t conn_handle = -1;
+    int is_locked = 0;
 
     MLAG_LOG(MLAG_LOG_INFO,
              "Send tcp message with opcode %d, destination peer id %d, length %d, handle %d\n",
@@ -711,27 +744,66 @@ message_send(struct mlag_comm_layer_wrapper_data *comm_layer_data,
     /* Set opcode to the message body */
     *((uint16_t*)payload) = (uint16_t)opcode;
 
+    SOCKET_LOCK(comm_layer_data);
+    is_locked = 1;
+
+    conn_handle = comm_layer_data->tcp_sock_handle[dest_peer_id];
+
     /* Send via communication library interface */
-    if (comm_layer_data->tcp_sock_handle[dest_peer_id]) {
-        if (comm_layer_data->net_order_msg_handler) {
+    if (conn_handle) {
+    	if (comm_layer_data->net_order_msg_handler) {
             comm_layer_data->net_order_msg_handler((void*)payload,
                                                    MESSAGE_SENDING);
         }
 
-        SOCKET_LOCK(comm_layer_data);
         err = comm_lib_tcp_send_blocking(
-            comm_layer_data->tcp_sock_handle[dest_peer_id],
-            payload, &payload_len_sent);
+        		conn_handle, payload, &payload_len_sent);
+
         SOCKET_UNLOCK(comm_layer_data);
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Failed to send tcp message with opcode %d, destination peer id %d, length %d, handle %d\n",
-    			opcode, dest_peer_id, payload_len,
-                comm_layer_data->tcp_sock_handle[dest_peer_id]);
+        is_locked = 0;
+
+        /* Check on connection failure */
+        if (err) {
+            if ((err == -ECONNRESET) || (err == -EPIPE) ||
+            		(err == -ETIMEDOUT)) {
+                /* Connection failure, EPIPE=32 ECONNRESET=104 ETIMEDOUT=110 */
+                MLAG_LOG(MLAG_LOG_NOTICE,
+                         "Connection failure on tcp send blocking: handle %d, tcp port %d, ip address 0x%08x, err %d\n",
+                         conn_handle, comm_layer_data->tcp_port,
+                         comm_layer_data->dest_ip_addr, err);
+
+                SOCKET_LOCK(comm_layer_data);
+                is_locked = 1;
+
+                err = comm_lib_tcp_peer_stop(conn_handle);
+                MLAG_BAIL_ERROR_MSG(err, "Failed to stop TCP session\n");
+
+                comm_layer_data->tcp_sock_handle[dest_peer_id] = 0;
+
+                /* Delete fd from message dispatcher */
+                if (comm_layer_data->add_fd_handler) {
+                    comm_layer_data->add_fd_handler(conn_handle, COMM_FD_DEL);
+                }
+
+                SOCKET_UNLOCK(comm_layer_data);
+                is_locked = 0;
+
+                /* Try to re-connect from the Slave side */
+                if (comm_layer_data->current_switch_status == SLAVE &&
+                	err != -ETIMEDOUT) {
+                	tcp_conn_start(comm_layer_data);
+                }
+            }
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed to send tcp message with opcode %d, destination peer id %d, length %d, handle %d, err %d\n",
+                                opcode, dest_peer_id, payload_len, conn_handle, err);
+            goto bail;
+        }
 
         /* return the pointer back to previous state */
         if (comm_layer_data->net_order_msg_handler) {
             comm_layer_data->net_order_msg_handler((void*)payload,
-            		MESSAGE_RECEIVE);
+                                                   MESSAGE_RECEIVE);
         }
 
         WRAPPER_INC_CNT(comm_layer_data, TX_CNT);
@@ -744,6 +816,9 @@ message_send(struct mlag_comm_layer_wrapper_data *comm_layer_data,
     }
 
 bail:
+	if (is_locked) {
+		SOCKET_UNLOCK(comm_layer_data);
+	}
     return err;
 }
 
@@ -772,7 +847,7 @@ mlag_comm_layer_wrapper_message_send(
 
     err = mlag_master_election_get_status(&master_election_current_status);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get status from master election in comm layer wrapper send message\n");
+                        "Failed to get status from master election in comm layer wrapper send message\n");
 
     if (master_election_current_status.current_status == MASTER) {
         if (orig == PEER_MANAGER) {
@@ -781,7 +856,8 @@ mlag_comm_layer_wrapper_message_send(
                      opcode);
 
             err = send_system_event(opcode, payload, payload_len);
-           	MLAG_BAIL_ERROR_MSG(err, "Failed in sending peer manager system event on master\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in sending peer manager system event on master\n");
         }
         else if (dest_peer_id == master_election_current_status.my_peer_id) {
             MLAG_LOG(MLAG_LOG_INFO,
@@ -789,35 +865,36 @@ mlag_comm_layer_wrapper_message_send(
                      opcode);
 
             err = send_system_event(opcode, payload, payload_len);
-           	MLAG_BAIL_ERROR_MSG(err, "Failed in sending master logic system event\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in sending master logic system event\n");
         }
         else {
             err = message_send(comm_layer_data, opcode, dest_peer_id, payload,
                                payload_len);
-           	MLAG_BAIL_ERROR_MSG(err, "Failed in sending tcp message on master\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in sending tcp message on master\n");
         }
     }
     else if (master_election_current_status.current_status == SLAVE) {
         err = message_send(comm_layer_data, opcode,
                            master_election_current_status.master_peer_id,
                            payload, payload_len);
-       	MLAG_BAIL_ERROR_MSG(err, "Failed in sending tcp message on slave\n");
+        MLAG_BAIL_ERROR_MSG(err, "Failed in sending tcp message on slave\n");
     }
     else if (master_election_current_status.current_status == STANDALONE) {
         if (dest_peer_id == master_election_current_status.my_peer_id) {
-            MLAG_LOG(MLAG_LOG_NOTICE,
+            MLAG_LOG(MLAG_LOG_INFO,
                      "sending system event with opcode %d on standalone\n",
                      opcode);
 
             err = send_system_event(opcode, payload, payload_len);
-           	MLAG_BAIL_ERROR_MSG(err, "Failed in sending system event on standalone\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in sending system event on standalone\n");
         }
         else {
             err = -ENOENT;
-            MLAG_BAIL_ERROR_MSG(err,
-                                "Unexpected destination peer_id [%d] own peer_id [%d] master peer_id [%d]\n",
-                                dest_peer_id, master_election_current_status.my_peer_id,
-                                master_election_current_status.master_peer_id);
+            MLAG_LOG(MLAG_LOG_NOTICE, "Standalone peer, can not send message\n");
+
         }
     }
 
@@ -964,10 +1041,10 @@ mlag_comm_layer_wrapper_reconnect(
         goto bail;
     }
 
-	MLAG_LOG(MLAG_LOG_NOTICE,
-			"Reconnect on tcp port %d and destination ip address 0x%08x\n",
-			comm_layer_data->tcp_port,
-			comm_layer_data->dest_ip_addr);
+    MLAG_LOG(MLAG_LOG_NOTICE,
+             "Reconnect on tcp port %d and destination ip address 0x%08x\n",
+             comm_layer_data->tcp_port,
+             comm_layer_data->dest_ip_addr);
 
     tcp_conn_start(comm_layer_data);
 

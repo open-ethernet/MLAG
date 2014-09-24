@@ -43,6 +43,7 @@
 #include <libs/mlag_common/mlag_comm_layer_wrapper.h>
 #include <libs/mlag_manager/mlag_manager_db.h>
 #include <libs/mlag_manager/mlag_dispatcher.h>
+#include <libs/service_layer/service_layer.h>
 
 #include "port_manager.h"
 #include "port_db.h"
@@ -849,6 +850,7 @@ static int
 global_down_entry_func(port_master_logic *fsm, struct fsm_event_base *ev)
 {
     int err = 0;
+    int dispatch_err;
     UNUSED_PARAM(ev);
     struct port_global_state_event_data port_state;
     /* Send Global Port down event*/
@@ -859,9 +861,15 @@ global_down_entry_func(port_master_logic *fsm, struct fsm_event_base *ev)
     err = send_system_event(MLAG_PORT_GLOBAL_STATE_EVENT, &port_state,
                             sizeof(port_state));
     MLAG_BAIL_ERROR_MSG(err, "Failed in sending port global state down event\n");
+
+    dispatch_err = sl_api_port_oper_status_trigger(fsm->port_id, OES_PORT_DOWN);
+    if (dispatch_err) {
+        MLAG_LOG(MLAG_LOG_INFO, "MLAG operstate-changed event dispatcher failed for port %ld\n", fsm->port_id);
+    }
+
     err = send_global_state_to_remote_peers(fsm, &port_state);
     MLAG_BAIL_ERROR_MSG(err, "Failed in sending global down to peers\n");
-
+    
 bail:
     return err;
 }
@@ -878,6 +886,7 @@ static int
 global_up_entry_func(port_master_logic *fsm, struct fsm_event_base *ev)
 {
     int err = 0;
+    int dispatch_err;
     UNUSED_PARAM(ev);
     struct port_global_state_event_data port_state;
     /* Send Global Port down event*/
@@ -888,9 +897,15 @@ global_up_entry_func(port_master_logic *fsm, struct fsm_event_base *ev)
     err = send_system_event(MLAG_PORT_GLOBAL_STATE_EVENT, &port_state,
                             sizeof(port_state));
     MLAG_BAIL_ERROR_MSG(err, "Failed in sending port global up state event\n");
+
+    dispatch_err = sl_api_port_oper_status_trigger(fsm->port_id, OES_PORT_UP);
+    if (dispatch_err) {
+        MLAG_LOG(MLAG_LOG_INFO, "MLAG operstate-changed event dispatcher failed for port %ld\n", fsm->port_id);
+    }
+
     err = send_global_state_to_remote_peers(fsm, &port_state);
     MLAG_BAIL_ERROR_MSG(err, "Failed in sending port global up to peers\n");
-
+    
 bail:
     return err;
 }

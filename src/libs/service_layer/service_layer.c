@@ -375,6 +375,26 @@ bail:
     return err;
 }
 
+/**
+ * This function trigger a system event in order to get notified on
+ * port operational status.
+ *
+ * @return 0 when successful, otherwise ERROR
+ */
+int
+sl_api_port_oper_status_trigger(const unsigned long port_id,
+                                const enum oes_port_oper_state operstate) {
+    int err = 0;
+    
+    UNUSED_PARAM(port_id);
+    UNUSED_PARAM(operstate);
+
+    goto bail;
+
+bail:
+    return err;
+}
+
 
 /**
 * This function retrieves the file descriptor of the current open channel
@@ -515,6 +535,33 @@ sl_api_pkt_send_loopback_ctrl(const int fd,
     UNUSED_PARAM(pkt_size);
     UNUSED_PARAM(l2_trap_id);
     UNUSED_PARAM(ingress_port_id);
+
+    goto bail;
+
+bail:
+    return err;
+}
+
+/**
+* @param[in] fd             - File descriptor to send from.
+* @param[in] pkt            - buffer containing the packet to send.
+* @param[in] pkt_size       - size of packet.
+* @param[in] egress_port_id - destination mlag port id.
+*
+* @return 0 when successful, otherwise ERROR
+*/
+int
+sl_api_ctrl_pkt_send(const int fd,
+                     const struct sl_api_ctrl_pkt_data *pkt_data,
+                     const unsigned long pkt_size,
+                     const unsigned long egress_port_id)
+{
+    int err = 0;
+
+    UNUSED_PARAM(fd);
+    UNUSED_PARAM(pkt_data);
+    UNUSED_PARAM(pkt_size);
+    UNUSED_PARAM(egress_port_id);
 
     goto bail;
 

@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -356,7 +356,7 @@ mlag_master_election_fsm_state_dispatcher( mlag_master_election_fsm  * fsm,
         if (event->opcode == start_ev) {
             SET_EVENT(mlag_master_election_fsm, start_ev)
             { /*tr00:*/
-                /* Source line = 115*/
+              /* Source line = 115*/
                 *target_state = &state_mlag_master_election_fsm_is_master;
                 return err;
             }
@@ -403,22 +403,20 @@ mlag_master_election_fsm_state_dispatcher( mlag_master_election_fsm  * fsm,
         break;
 
     case mlag_master_election_fsm_is_master:
-        {
-            if (is_master(fsm)) { /*tr40:*/
-                err = send_notification_message( fsm, DEFAULT_PARAMS_D, evt); /* Source line = 144*/
-                *target_state = &state_mlag_master_election_fsm_master;
-                return err;
-            }
-            else if (is_slave(fsm)) { /*tr41:*/
-                /* Source line = 145*/
-                *target_state = &state_mlag_master_election_fsm_slave;
-                return err;
-            }
-            else { /*tr42:*/
-                /* Source line = 146*/
-                *target_state = &state_mlag_master_election_fsm_standalone;
-                return err;
-            }
+        if (is_master(fsm)) {     /*tr40:*/
+            err = send_notification_message( fsm, DEFAULT_PARAMS_D, evt);     /* Source line = 144*/
+            *target_state = &state_mlag_master_election_fsm_master;
+            return err;
+        }
+        else if (is_slave(fsm)) {     /*tr41:*/
+            /* Source line = 145*/
+            *target_state = &state_mlag_master_election_fsm_slave;
+            return err;
+        }
+        else {     /*tr42:*/
+                   /* Source line = 146*/
+            *target_state = &state_mlag_master_election_fsm_standalone;
+            return err;
         }
 
         break;
@@ -427,7 +425,7 @@ mlag_master_election_fsm_state_dispatcher( mlag_master_election_fsm  * fsm,
         if (event->opcode == stop_ev) {
             SET_EVENT(mlag_master_election_fsm, stop_ev)
             { /*tr50:*/
-                /* Source line = 153*/
+              /* Source line = 153*/
                 *target_state = &state_mlag_master_election_fsm_idle;
                 return err;
             }
@@ -435,7 +433,7 @@ mlag_master_election_fsm_state_dispatcher( mlag_master_election_fsm  * fsm,
         else if (event->opcode == config_change_ev) {
             SET_EVENT(mlag_master_election_fsm, config_change_ev)
             { /*tr51:*/
-                /* Source line = 154*/
+              /* Source line = 154*/
                 *target_state = &state_mlag_master_election_fsm_is_master;
                 return err;
             }
@@ -466,27 +464,33 @@ mlag_master_election_fsm_init(struct mlag_master_election_fsm *fsm,
               Getters for each State
    ---------------------------------------------------------------*/
 tbool
-mlag_master_election_fsm_idle_in(struct mlag_master_election_fsm *fsm){
+mlag_master_election_fsm_idle_in(struct mlag_master_election_fsm *fsm)
+{
     return fsm_is_in_state(&fsm->base, mlag_master_election_fsm_idle);
 }
 tbool
-mlag_master_election_fsm_master_in(struct mlag_master_election_fsm *fsm){
+mlag_master_election_fsm_master_in(struct mlag_master_election_fsm *fsm)
+{
     return fsm_is_in_state(&fsm->base, mlag_master_election_fsm_master);
 }
 tbool
-mlag_master_election_fsm_slave_in(struct mlag_master_election_fsm *fsm){
+mlag_master_election_fsm_slave_in(struct mlag_master_election_fsm *fsm)
+{
     return fsm_is_in_state(&fsm->base, mlag_master_election_fsm_slave);
 }
 tbool
-mlag_master_election_fsm_standalone_in(struct mlag_master_election_fsm *fsm){
+mlag_master_election_fsm_standalone_in(struct mlag_master_election_fsm *fsm)
+{
     return fsm_is_in_state(&fsm->base, mlag_master_election_fsm_standalone);
 }
 tbool
-mlag_master_election_fsm_is_master_in(struct mlag_master_election_fsm *fsm){
+mlag_master_election_fsm_is_master_in(struct mlag_master_election_fsm *fsm)
+{
     return fsm_is_in_state(&fsm->base, mlag_master_election_fsm_is_master);
 }
 tbool
-mlag_master_election_fsm_mlag_enable_in(struct mlag_master_election_fsm *fsm){
+mlag_master_election_fsm_mlag_enable_in(struct mlag_master_election_fsm *fsm)
+{
     return fsm_is_in_state(&fsm->base, mlag_master_election_fsm_mlag_enable);
 }
 /*----------------------------------------------------------------
@@ -528,10 +532,10 @@ send_switch_status_change_event(mlag_master_election_fsm *fsm)
               fsm->current_status, fsm->previous_status);
 
     /* Set my peer id into Mlag manager db */
-    if (fsm->my_ip_addr || fsm->current_status == STANDALONE) {
-    	err = mlag_manager_db_mlag_peer_id_set(fsm->my_ip_addr,
-    			(fsm->current_status == SLAVE)
-    			? SLAVE_PEER_ID : MASTER_PEER_ID);
+    if (fsm->my_ip_addr || (fsm->current_status == STANDALONE)) {
+        err = mlag_manager_db_mlag_peer_id_set(fsm->my_ip_addr,
+                                               (fsm->current_status == SLAVE)
+                                               ? SLAVE_PEER_ID : MASTER_PEER_ID);
         MLAG_BAIL_ERROR_MSG(err,
                             "Failed to set mlag peer id of local peer to mlag manager database\n");
     }
@@ -547,7 +551,8 @@ send_switch_status_change_event(mlag_master_election_fsm *fsm)
         fsm_trace((struct fsm_base *)fsm,
                   "Called mlag_manager_db_mlag_peer_id_set: peer_ip_addr=0x%08x, peer_id=%s\n",
                   fsm->peer_ip_addr,
-                  (fsm->current_status == MASTER) ? "SLAVE_PEER_ID" : "MASTER_PEER_ID");
+                  (fsm->current_status ==
+                   MASTER) ? "SLAVE_PEER_ID" : "MASTER_PEER_ID");
     }
 
     /* If switch status changed send notification message to registered modules */
@@ -776,7 +781,7 @@ bail:
  */
 int
 mlag_master_election_fsm_print(struct mlag_master_election_fsm *fsm,
-		void (*dump_cb)(const char *,...))
+                               void (*dump_cb)(const char *, ...))
 {
     int err = 0;
     char *current_status_str;
@@ -790,41 +795,41 @@ mlag_master_election_fsm_print(struct mlag_master_election_fsm *fsm,
     MLAG_BAIL_ERROR(err);
 
     if (dump_cb == NULL) {
-    	MLAG_LOG(MLAG_LOG_INFO, "FSM: "
-    			 "Master Election FSM internal attributes:\n");
-    	MLAG_LOG(MLAG_LOG_INFO, "FSM: "
-    			 "current_status = %s, previous_status = %s\n",
-    			 current_status_str, previous_switch_str);
-    	MLAG_LOG(MLAG_LOG_INFO, "FSM: "
-    			 "local ip address = 0x%08x, peer ip address = ox%08x\n",
-    			 fsm->my_ip_addr, fsm->peer_ip_addr);
-    	MLAG_LOG(MLAG_LOG_INFO, "FSM: "
-    			 "peer_status = %s\n",
-    			 (fsm->peer_status == HEALTH_PEER_DOWN) ? "DOWN" : "UP");
-    	MLAG_LOG(MLAG_LOG_INFO, "FSM: "
-    			 "local_peer_id = %d, master_peer_id = %d\n",
-    			 fsm->my_peer_id, fsm->master_peer_id);
-    	fsm_print((struct fsm_base *)fsm);
-    	MLAG_LOG(MLAG_LOG_INFO, "FSM: "
-    			 "End of Master Election FSM internal attributes\n");
+        MLAG_LOG(MLAG_LOG_INFO, "FSM: "
+                 "Master Election FSM internal attributes:\n");
+        MLAG_LOG(MLAG_LOG_INFO, "FSM: "
+                 "current_status = %s, previous_status = %s\n",
+                 current_status_str, previous_switch_str);
+        MLAG_LOG(MLAG_LOG_INFO, "FSM: "
+                 "local ip address = 0x%08x, peer ip address = ox%08x\n",
+                 fsm->my_ip_addr, fsm->peer_ip_addr);
+        MLAG_LOG(MLAG_LOG_INFO, "FSM: "
+                 "peer_status = %s\n",
+                 (fsm->peer_status == HEALTH_PEER_DOWN) ? "DOWN" : "UP");
+        MLAG_LOG(MLAG_LOG_INFO, "FSM: "
+                 "local_peer_id = %d, master_peer_id = %d\n",
+                 fsm->my_peer_id, fsm->master_peer_id);
+        fsm_print((struct fsm_base *)fsm);
+        MLAG_LOG(MLAG_LOG_INFO, "FSM: "
+                 "End of Master Election FSM internal attributes\n");
     }
     else {
-    	dump_cb("FSM: "
-    			"Master Election FSM internal attributes:\n");
-    	dump_cb("FSM: "
-    			 "current_status = %s, previous_status = %s\n",
-    			 current_status_str, previous_switch_str);
-    	dump_cb("FSM: "
-    			 "local ip address = 0x%08x, peer ip address = ox%08x\n",
-    			 fsm->my_ip_addr, fsm->peer_ip_addr);
-    	dump_cb("FSM: "
-    			 "peer_status = %s\n",
-    			 (fsm->peer_status == HEALTH_PEER_DOWN) ? "DOWN" : "UP");
-    	dump_cb("FSM: "
-    			 "local_peer_id = %d, master_peer_id = %d\n",
-    			 fsm->my_peer_id, fsm->master_peer_id);
-    	dump_cb("FSM: "
-    			 "End of Master Election FSM internal attributes\n");
+        dump_cb("FSM: "
+                "Master Election FSM internal attributes:\n");
+        dump_cb("FSM: "
+                "current_status = %s, previous_status = %s\n",
+                current_status_str, previous_switch_str);
+        dump_cb("FSM: "
+                "local ip address = 0x%08x, peer ip address = ox%08x\n",
+                fsm->my_ip_addr, fsm->peer_ip_addr);
+        dump_cb("FSM: "
+                "peer_status = %s\n",
+                (fsm->peer_status == HEALTH_PEER_DOWN) ? "DOWN" : "UP");
+        dump_cb("FSM: "
+                "local_peer_id = %d, master_peer_id = %d\n",
+                fsm->my_peer_id, fsm->master_peer_id);
+        dump_cb("FSM: "
+                "End of Master Election FSM internal attributes\n");
     }
 
 bail:

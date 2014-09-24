@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 
 #ifndef MLAG_API_RPC_H_
@@ -80,6 +80,11 @@ enum mlag_internal_api_cmd {
     MLAG_INTERNAL_API_CMD_IPL_IP_GET,
     MLAG_INTERNAL_API_CMD_DUMP,
     MLAG_INTERNAL_API_CMD_ROUTER_MAC_SET,
+    MLAG_INTERNAL_API_CMD_PORT_MODE_SET,
+    MLAG_INTERNAL_API_CMD_PORT_MODE_GET,
+    MLAG_INTERNAL_API_CMD_LACP_SYS_ID_SET,
+    MLAG_INTERNAL_API_CMD_LACP_ACTOR_PARAMS_GET,
+    MLAG_INTERNAL_API_CMD_LACP_SELECT_REQUEST,
 };
 
 /************************************************
@@ -263,7 +268,7 @@ struct mlag_api_ipl_port_get_params {
     unsigned long port_id;
 };
 
-/*
+/**
  * mlag_api_port_state_get_params structure is used to store
  * mlag_api_port_state_get function parameters.
  */
@@ -312,6 +317,37 @@ struct mlag_api_router_mac_set_params {
     enum access_cmd access_cmd;
     unsigned int router_macs_list_cnt;
     struct router_mac router_macs_list[0];
+};
+
+/**
+ * mlag_api_port_mode_set_params structure is used to store
+ * mlag_api_port_mode_set function parameters.
+ */
+struct mlag_api_port_mode_params {
+    unsigned long port_id;
+    enum mlag_port_mode port_mode;
+};
+
+/**
+ * mlag_api_lacp_actor_params structure is used to store
+ * mlag_api_lacp_actor_parameters_get function parameters.
+ */
+struct mlag_api_lacp_actor_params {
+    unsigned long long system_id;
+    unsigned int chassis_id;
+};
+
+/**
+ * mlag_api_lacp_selection_request_params structure is used to store
+ * mlag_api_lacp_selection_request function parameters.
+ */
+struct mlag_api_lacp_selection_request_params {
+    enum access_cmd access_cmd;
+    unsigned int request_id;
+    unsigned long port_id;
+    unsigned long long partner_sys_id;
+    unsigned int partner_key;
+    unsigned char force;
 };
 
 /************************************************

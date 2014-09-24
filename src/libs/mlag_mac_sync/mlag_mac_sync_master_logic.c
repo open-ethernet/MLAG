@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_init.h>
@@ -159,11 +159,11 @@ static const struct fdb_uc_key_filter empty_filter =
 {FDB_KEY_FILTER_FIELD_NOT_VALID, 0, FDB_KEY_FILTER_FIELD_NOT_VALID, 0};
 
 
-static struct mac_sync_multiple_learn_buffer  gl_originator_buff; /*global learn buffers*/
-static struct mac_sync_multiple_learn_buffer  gl_all_buff;
-static struct mac_sync_multiple_learn_buffer  gl_remote_buff;
-                                                          /* global age buffer*/
-static struct mac_sync_multiple_age_buffer    global_age_buffer;
+static struct mac_sync_multiple_learn_buffer gl_originator_buff;  /*global learn buffers*/
+static struct mac_sync_multiple_learn_buffer gl_all_buff;
+static struct mac_sync_multiple_learn_buffer gl_remote_buff;
+/* global age buffer*/
+static struct mac_sync_multiple_age_buffer global_age_buffer;
 
 /************************************************
  *  Local function declarations
@@ -171,7 +171,7 @@ static struct mac_sync_multiple_age_buffer    global_age_buffer;
 static int generic_get_entry(struct fdb_uc_mac_addr_params *mac_entry);
 
 static int process_new_macs_set_to_peer( struct
-		                               mac_sync_multiple_learn_buffer * gl_buff);
+                                         mac_sync_multiple_learn_buffer * gl_buff);
 
 static int process_local_learn_new_mac(void * cookie,
                                        struct mac_sync_learn_event_data * data);
@@ -283,8 +283,8 @@ mlag_mac_sync_master_logic_init(void)
     cl_status_t cl_status = 0;
 
     if (is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync master logic init called twice\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "mac sync master logic init called twice\n");
     }
 
     cl_pool_construct(&cookie_pool);
@@ -318,7 +318,7 @@ mlag_mac_sync_master_logic_init(void)
         struct flush_fsm_item  *entry = NULL;
         /* Allocate FSM and insert it to the free pool*/
         entry =
-            (struct flush_fsm_item  *)malloc(sizeof(struct flush_fsm_item));
+            (struct flush_fsm_item  *)cl_malloc(sizeof(struct flush_fsm_item));
         if (entry == NULL) {
             /* Allocate fsm state machine memory error */
             MLAG_LOG(MLAG_LOG_ERROR,
@@ -334,7 +334,7 @@ mlag_mac_sync_master_logic_init(void)
         struct flush_fsm_item  *entry = NULL;
         /* Allocate FSM and insert it to the free pool*/
         entry =
-            (struct flush_fsm_item  *)malloc(sizeof(struct flush_fsm_item));
+            (struct flush_fsm_item  *)cl_malloc(sizeof(struct flush_fsm_item));
         if (entry == NULL) {
             MLAG_LOG(MLAG_LOG_ERROR,
                      "Allocate fsm state machine memory error\n");
@@ -368,58 +368,65 @@ mlag_mac_sync_master_logic_deinit(void)
     const cl_map_item_t *map_end = NULL;
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync master logic deinit called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "mac sync master logic deinit called before init\n");
     }
     err = mlag_mac_sync_master_logic_stop(NULL);
-    MLAG_BAIL_ERROR_MSG(err,"Failed to stop master logic, err %d\n", err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to stop master logic, err %d\n", err);
     cl_pool_destroy(&cookie_pool);
 
     /* move all flush fsm to idle and free the memory*/
-     itor = cl_list_head(&vlan_port_system_flush_fsm_pool);
-     while (itor != cl_list_end(&vlan_port_system_flush_fsm_pool)) {
-         struct flush_fsm_item *flush_fsm =
-             (struct flush_fsm_item * )(cl_list_obj(itor));
+    itor = cl_list_head(&vlan_port_system_flush_fsm_pool);
+    while (itor != cl_list_end(&vlan_port_system_flush_fsm_pool)) {
+        struct flush_fsm_item *flush_fsm =
+            (struct flush_fsm_item * )(cl_list_obj(itor));
 
-         /* Stop  Flush FSM*/
-         err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
-         MLAG_BAIL_ERROR_MSG(err,"master logic stop: Failed to stop flash process of pool 1, err %d\n", err);
-
-
-         free(flush_fsm);
-         itor = cl_list_next(itor);
-     }
-
-     itor = cl_list_head(&vlan_port_flush_fsm_pool);
-     while (itor != cl_list_end(&vlan_port_flush_fsm_pool)) {
-         struct flush_fsm_item *flush_fsm =
-             (struct flush_fsm_item * )(cl_list_obj(itor));
-
-         /* Stop Flush FSM*/
-         err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
-         MLAG_BAIL_ERROR_MSG(err,"master logic stop: Failed to stop flash process of pool 2, err %d", err);
+        /* Stop  Flush FSM*/
+        err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "master logic stop: Failed to stop flash process of pool 1, err %d\n",
+                            err);
 
 
-         free(flush_fsm);
-         itor = cl_list_next(itor);
-     }
+        cl_free(flush_fsm);
+        itor = cl_list_next(itor);
+    }
 
-     map_item = cl_qmap_head(&vlan_ports_system_flush_fsm_map);
-     map_end = cl_qmap_end(&vlan_ports_system_flush_fsm_map);
-     while (map_item != map_end) {
-         struct flush_fsm_item *flush_fsm = PARENT_STRUCT(map_item,
-                                                          struct flush_fsm_item,
-                                                          map_item);
+    itor = cl_list_head(&vlan_port_flush_fsm_pool);
+    while (itor != cl_list_end(&vlan_port_flush_fsm_pool)) {
+        struct flush_fsm_item *flush_fsm =
+            (struct flush_fsm_item * )(cl_list_obj(itor));
 
-         /* Stop Flush FSM*/
-         err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
-         MLAG_BAIL_ERROR_MSG(err,"master logic stop: Failed to stop flash process in map, err %d", err);
+        /* Stop Flush FSM*/
+        err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "master logic stop: Failed to stop flash process of pool 2, err %d",
+                            err);
 
 
-         free(flush_fsm);
+        cl_free(flush_fsm);
+        itor = cl_list_next(itor);
+    }
 
-         map_item = cl_qmap_next(map_item);
-     }
+    map_item = cl_qmap_head(&vlan_ports_system_flush_fsm_map);
+    map_end = cl_qmap_end(&vlan_ports_system_flush_fsm_map);
+    while (map_item != map_end) {
+        struct flush_fsm_item *flush_fsm = PARENT_STRUCT(map_item,
+                                                         struct flush_fsm_item,
+                                                         map_item);
+
+        /* Stop Flush FSM*/
+        err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "master logic stop: Failed to stop flash process in map, err %d",
+                            err);
+
+
+        cl_free(flush_fsm);
+
+        map_item = cl_qmap_next(map_item);
+    }
 
     is_started = 0;
     is_inited = 0;
@@ -427,14 +434,6 @@ mlag_mac_sync_master_logic_deinit(void)
 bail:
     return err;
 }
-
-/*
-   static void
-   flush_fsm_user_trace(char *buf, int len)
-   {
-    UNUSED_PARAM(len);
-    MLAG_LOG(MLAG_LOG_NOTICE, "%s\n", buf);
-   }*/
 
 /**
  *  This function
@@ -450,7 +449,8 @@ flush_fsm_timer_cb(void *data)
     timer_data.data = data;
     err = send_system_event( MLAG_FLUSH_FSM_TIMER, &timer_data,
                              sizeof(timer_data));
-    MLAG_BAIL_ERROR_MSG(err, "Failed in sending timer event for flush process\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in sending timer event for flush process\n");
 
 bail:
     return;
@@ -475,22 +475,25 @@ flush_sched_func(int timeout, void *data, void ** timer_handler)
     concrete_timer_handler = (cl_timer_t *)cl_malloc(sizeof(cl_timer_t));
     if (concrete_timer_handler == NULL) {
         err = -ENOMEM;
-        MLAG_BAIL_ERROR_MSG(err,"no memory upon allocation timer for flush sm, err %d\n", err);
-
+        MLAG_BAIL_ERROR_MSG(err,
+                            "no memory upon allocation timer for flush sm, err %d\n",
+                            err);
     }
 
     /* Init timer */
     cl_err = cl_timer_init(concrete_timer_handler, flush_fsm_timer_cb, data);
     if (cl_err != CL_SUCCESS) {
         err = -EIO;
-        MLAG_BAIL_ERROR_MSG(err, "Failed to init timer for flush sm, err %d\n", err);
+        MLAG_BAIL_ERROR_MSG(err, "Failed to init timer for flush sm, err %d\n",
+                            err);
     }
 
     cl_err = cl_timer_start(concrete_timer_handler, timeout);
     if (cl_err != CL_SUCCESS) {
         err = -EIO;
-        MLAG_BAIL_ERROR_MSG(err,"Failed to start timer for flush sm, err %d\n", err);
-
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to start timer for flush sm, err %d\n",
+                            err);
     }
 
 bail:
@@ -519,8 +522,7 @@ flush_unsched_func(void ** timer_handler)
     cl_err = cl_free(*timer_handler);
     if (cl_err != CL_SUCCESS) {
         err = -ENOMEM;
-        MLAG_BAIL_ERROR_MSG(err,"Failed to un-schedule timer, err %d\n", err);
-
+        MLAG_BAIL_ERROR_MSG(err, "Failed to un-schedule timer, err %d\n", err);
     }
 
 bail:
@@ -542,8 +544,9 @@ mlag_mac_sync_master_logic_start(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync master logic start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "mac sync master logic start called before init\n");
     }
     if (is_started) {
         goto bail;
@@ -566,7 +569,9 @@ mlag_mac_sync_master_logic_start(uint8_t *data)
                                            flush_sched_func,
                                            flush_unsched_func);
 
-        MLAG_BAIL_ERROR_MSG(err,"Failed to init flush sm from 1 pool, err %d\n", err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to init flush sm from 1 pool, err %d\n",
+                            err);
 
         memset(&flush_fsm->filter, 0xF, sizeof(flush_fsm->filter));
         itor = cl_list_next(itor);
@@ -582,14 +587,16 @@ mlag_mac_sync_master_logic_start(uint8_t *data)
                                            NULL /*flush_fsm_user_trace*/,
                                            flush_sched_func,
                                            flush_unsched_func);
-        MLAG_BAIL_ERROR_MSG(err,"Failed to init flush sm from 2 pool, err %d\n", err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to init flush sm from 2 pool, err %d\n",
+                            err);
 
         memset(&flush_fsm->filter, 0xF, sizeof(flush_fsm->filter));
         itor = cl_list_next(itor);
     }
 
 bail:
-    MLAG_LOG(MLAG_LOG_NOTICE, "Master logic started err %d", err);
+    MLAG_LOG(MLAG_LOG_INFO, "Master logic started err %d", err);
 
     return err;
 }
@@ -608,12 +615,13 @@ mlag_mac_sync_master_logic_stop(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync master logic stop called before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "mac sync master logic stop called before start\n");
     }
 
     err = mlag_mac_sync_master_logic_flush_stop(NULL);
-    MLAG_BAIL_ERROR_MSG(err,"Failed to stop flush sm, err %d\n", err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to stop flush sm, err %d\n", err);
 
     is_started = 0;
 
@@ -637,18 +645,18 @@ mlag_mac_sync_master_logic_sync_start(struct sync_event_data *data)
     ASSERT(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "sync start event accepted before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "sync start event accepted before start\n");
     }
     if (!(((data->peer_id >= 0) && (data->peer_id < MLAG_MAX_PEERS)) &&
           (data->state == 0))) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Invalid parameters in sync start event: peer_id=%d, state=%d\n",
-    			data->peer_id, data->state);
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameters in sync start event: peer_id=%d, state=%d\n",
+                            data->peer_id, data->state);
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mlag_mac_sync_master_logic_sync_start: peer_id=%d\n",
              data->peer_id);
 
@@ -679,16 +687,16 @@ mlag_mac_sync_master_logic_sync_finish(struct sync_event_data *data)
     }
     if (!(((data->peer_id >= 0) && (data->peer_id < MLAG_MAX_PEERS))
           )) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Invalid parameters in sync finish event: peer_id=%d\n",
-    			data->peer_id);
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameters in sync finish event: peer_id=%d\n",
+                            data->peer_id);
     }
 
     peer_state[data->peer_id] = PEER_ENABLE; /* TODO : PEER_TX_ENABLE; */
 
     MLAG_LOG(MLAG_LOG_NOTICE,
-             "mlag_mac_sync_master_logic_sync_finish: peer_id=%d, state=%d\n",
+             "Send sync done for mac sync peer_id=%d, state=%d\n",
              data->peer_id, data->state);
 
     /* Send MLAG_PEER_SYNC_DONE to MLag protocol manager */
@@ -698,7 +706,7 @@ mlag_mac_sync_master_logic_sync_finish(struct sync_event_data *data)
     err =
         send_system_event(MLAG_PEER_SYNC_DONE, &sync_done, sizeof(sync_done));
 
-    MLAG_BAIL_ERROR_MSG(err,"Failed to send event peer_done, err %d\n" , err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to send event peer_done, err %d\n", err);
 
 bail:
     return err;
@@ -721,18 +729,18 @@ mlag_mac_sync_master_logic_peer_enable(struct peer_state_change_data *data)
     ASSERT(data);
     struct sync_event_data ev;
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "peer enable event accepted before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "peer enable event accepted before start\n");
     }
     if (!(((data->mlag_id >= 0) && (data->mlag_id < MLAG_MAX_PEERS)) &&
           (data->state == PEER_ENABLE))) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Invalid parameters in sync enable event: mlag_id=%d, state=%d\n",
-    			data->mlag_id, data->state);
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameters in sync enable event: mlag_id=%d, state=%d\n",
+                            data->mlag_id, data->state);
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mlag_mac_sync_master_logic_peer_enable event: mlag_id=%d\n",
              data->mlag_id);
 
@@ -743,8 +751,8 @@ mlag_mac_sync_master_logic_peer_enable(struct peer_state_change_data *data)
     err = mlag_mac_sync_dispatcher_message_send(
         MLAG_MAC_SYNC_MASTER_SYNC_DONE_EVENT, (void *)&ev, sizeof(ev),
         data->mlag_id, MASTER_LOGIC);
-    MLAG_BAIL_ERROR_MSG(err,"Failed to send event master_sync_done, err %d\n",
-    		               err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to send event master_sync_done, err %d\n",
+                        err);
 
 bail:
     return err;
@@ -767,8 +775,8 @@ mlag_mac_sync_master_logic_peer_status_change(
     peer_state[data->mlag_id] = PEER_DOWN;
     err = ctrl_learn_api_get_uc_db_access( _master_process_peer_down_cb, data);
 
-    MLAG_BAIL_ERROR_MSG(err,"Failed to process peer down in master err %d\n",
-        		                                                    err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to process peer down in master err %d\n",
+                        err);
 
 bail:
     return err;
@@ -801,12 +809,12 @@ mlag_mac_sync_master_logic_global_flush_start(uint8_t *data)
 
     if (inc_msg->port_num > MLAG_MAX_PORTS) {
         err = -EPERM;
-        MLAG_BAIL_ERROR_MSG(err,"Global flush start: illegal port, err %d \n",
-                		                                       err);
+        MLAG_BAIL_ERROR_MSG(err, "Global flush start: illegal port, err %d \n",
+                            err);
     }
 
     for (i = 0; i < inc_msg->port_num; i++) {
-        if (inc_msg->state[i] == MLAG_PORT_HOST_DOWN) {
+        if (inc_msg->state[i] == MLAG_PORT_GLOBAL_DOWN) {
             msg.gen_data.filter.filter_by_log_port =
                 FDB_KEY_FILTER_FIELD_VALID;
             msg.gen_data.filter.filter_by_vid = FDB_KEY_FILTER_FIELD_NOT_VALID;
@@ -830,12 +838,15 @@ mlag_mac_sync_master_logic_global_flush_start(uint8_t *data)
                 &msg.gen_data, 1, &fsm);
             if (err == -ENOMEM) {
                 non_available_memory_fsm_cnt++;
-                MLAG_LOG(MLAG_LOG_NOTICE, "Global flush - No available fsm non_available_memory_fsm_cnt [%du]\n",non_available_memory_fsm_cnt);
+                MLAG_LOG(MLAG_LOG_NOTICE,
+                         "Global flush - No available fsm non_available_memory_fsm_cnt [%du]\n",
+                         non_available_memory_fsm_cnt);
                 err = 0;
                 continue;
             }
-            MLAG_BAIL_ERROR_MSG(err,"Failed in get available sm for global flush process, err %d \n",
-                           		                                       err);
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in get available sm for global flush process, err %d \n",
+                                err);
 
             if (FALSE == mlag_mac_sync_flush_fsm_idle_in(fsm)) {
                 MLAG_LOG(MLAG_LOG_INFO,
@@ -846,9 +857,9 @@ mlag_mac_sync_master_logic_global_flush_start(uint8_t *data)
                          "Global MLAG port state processed by Master\n");
 
                 err = mlag_mac_sync_flush_fsm_start_ev(fsm, (void *)&msg);
-                MLAG_BAIL_ERROR_MSG(err,"Failed to start sm for global flush, err %d \n",
-                                           		                    err);
-
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed to start sm for global flush, err %d \n",
+                                    err);
             }
         }
     }
@@ -937,8 +948,8 @@ mlag_mac_sync_master_logic_flush_start(uint8_t *data)
     ASSERT(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "flush start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "flush start called before init\n");
     }
     if (!is_started) {
         goto bail;
@@ -958,13 +969,16 @@ mlag_mac_sync_master_logic_flush_start(uint8_t *data)
     err = mlag_mac_sync_master_logic_get_available_flush_fsm(&msg->gen_data, 1,
                                                              &fsm);
     if (err == -ENOMEM) {
-        MLAG_LOG(MLAG_LOG_NOTICE, "Flush - No available sm for flush, cnt [%d]\n",non_available_memory_fsm_cnt);
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "Flush - No available sm for flush, cnt [%d]\n",
+                 non_available_memory_fsm_cnt);
         err = 0;
         goto bail;
     }
 
-    MLAG_BAIL_ERROR_MSG(err,"Failed to get available sm for peer initiated flush, err %d \n",
-                                              		                    err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed to get available sm for peer initiated flush, err %d \n",
+                        err);
     if (FALSE == mlag_mac_sync_flush_fsm_idle_in(fsm)) {
         MLAG_LOG(MLAG_LOG_INFO, "Flush is already processed\n");
     }
@@ -973,8 +987,9 @@ mlag_mac_sync_master_logic_flush_start(uint8_t *data)
                  msg->number_mac_params);
 
         err = mlag_mac_sync_flush_fsm_start_ev(fsm,  (void *)msg);
-        MLAG_BAIL_ERROR_MSG(err,"Failed to start sm for peer initiated flush, err %d \n",
-                                                      		          err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to start sm for peer initiated flush, err %d \n",
+                            err);
     }
 
 bail:
@@ -1001,8 +1016,8 @@ mlag_mac_sync_master_logic_flush_stop(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "flush stop called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "flush stop called before init\n");
     }
     if (!is_started) {
         goto bail;
@@ -1015,8 +1030,9 @@ mlag_mac_sync_master_logic_flush_stop(uint8_t *data)
 
         /* Stop  Flush FSM*/
         err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
-        MLAG_BAIL_ERROR_MSG(err,"Failed to stop flush sm in pool 1, err %d \n",
-                                               	          err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to stop flush sm in pool 1, err %d \n",
+                            err);
         itor = cl_list_next(itor);
     }
 
@@ -1027,8 +1043,9 @@ mlag_mac_sync_master_logic_flush_stop(uint8_t *data)
 
         /* Stop Flush FSM*/
         err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
-        MLAG_BAIL_ERROR_MSG(err,"Failed to stop flush sm in pool 2, err %d \n",
-                                                       	          err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to stop flush sm in pool 2, err %d \n",
+                            err);
 
         itor = cl_list_next(itor);
     }
@@ -1041,8 +1058,8 @@ mlag_mac_sync_master_logic_flush_stop(uint8_t *data)
                                                          map_item);
         /* Stop Flush FSM*/
         err = mlag_mac_sync_flush_fsm_stop_ev(&flush_fsm->fsm);
-        MLAG_BAIL_ERROR_MSG(err,"Failed to stop flush sm in map, err %d \n",
-                                                               	     err);
+        MLAG_BAIL_ERROR_MSG(err, "Failed to stop flush sm in map, err %d \n",
+                            err);
 
         map_item = cl_qmap_next(map_item);
     }
@@ -1088,14 +1105,15 @@ mlag_mac_sync_master_logic_flush_ack(uint8_t *data)
         err = 0;
         goto bail;
     }
-    MLAG_BAIL_ERROR_MSG(err,"Failed to get flush sm for peer's Ack %lu, err %d \n",
-    		                   msg->gen_data.filter.log_port,
-    		                   err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed to get flush sm for peer's Ack %lu, err %d \n",
+                        msg->gen_data.filter.log_port,
+                        err);
 
 
     err = mlag_mac_sync_flush_fsm_peer_ack(flush_fsm,  msg->peer_id);
-    MLAG_BAIL_ERROR_MSG(err,"Failed in sm processing peer's Ack, err %d \n",
- 	          err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed in sm processing peer's Ack, err %d \n",
+                        err);
 
 bail:
     return err;
@@ -1121,7 +1139,9 @@ mlag_mac_sync_master_logic_flush_fsm_timer(uint8_t *data)
     }
 
     err = fsm_timer_trigger_operation(timer_data->data );
-    MLAG_BAIL_ERROR_MSG(err, "Error in flush sm upon process of timer operation %d \n",err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Error in flush sm upon process of timer operation %d \n",
+                        err);
 
 bail:
     return err;
@@ -1151,17 +1171,18 @@ mlag_mac_sync_master_logic_local_learn(void *data)
     gl_originator_buff.num_msg = 0;
     gl_originator_buff.opcode = MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;
 
-    gl_all_buff.num_msg        = 0;
+    gl_all_buff.num_msg = 0;
     gl_all_buff.opcode = MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;
 
-    gl_remote_buff.num_msg     = 0;
+    gl_remote_buff.num_msg = 0;
     gl_remote_buff.opcode = MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;
 
     if (peer_state[msg->msg.originator_peer_id] == PEER_ENABLE) {
         err = ctrl_learn_api_get_uc_db_access( _master_process_local_learn_cb,
                                                data);
-        MLAG_BAIL_ERROR_MSG(err,"Failed  in master in process local learn callback, err %d \n",
-                                                                       	     err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed  in master in process local learn callback, err %d \n",
+                            err);
     }
     else {
         MLAG_LOG(MLAG_LOG_INFO, "master ignores LL :peer %d disabled\n",
@@ -1169,8 +1190,9 @@ mlag_mac_sync_master_logic_local_learn(void *data)
     }
     /* process all global learn buffers - send them to appropriate peers*/
     err = send_global_learn_buffers();
-    MLAG_BAIL_ERROR_MSG(err,"Failed to send global learn messages from buffers, err %d \n",
-                                                                   	     err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed to send global learn messages from buffers, err %d \n",
+                        err);
 bail:
     return err;
 }
@@ -1194,62 +1216,67 @@ _master_process_local_learn_cb(void* user_data)
     struct mac_sync_multiple_learn_buffer *msg =
         (struct mac_sync_multiple_learn_buffer *)user_data;
 
-    struct fdb_uc_mac_addr_params mac_entry ;
-    static struct mac_sync_multiple_learn_buffer  gl_buff;
+    struct fdb_uc_mac_addr_params mac_entry;
+    static struct mac_sync_multiple_learn_buffer gl_buff;
 
     gl_buff.num_msg = 0;
-    gl_buff.opcode  = MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;
+    gl_buff.opcode = MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;
 
 
-    MLAG_LOG(MLAG_LOG_INFO, "master receives local learn %d messages, orig %d \n",
-    		msg->num_msg , msg->msg[0].originator_peer_id );
+    MLAG_LOG(MLAG_LOG_INFO,
+             "master receives local learn %d messages, orig %d \n",
+             msg->num_msg, msg->msg[0].originator_peer_id );
 
-    for (i =0; i < msg->num_msg; i++ ){
-		memcpy(&mac_entry .mac_addr_params, &msg->msg[i].mac_params,
-			   sizeof(struct oes_fdb_uc_mac_addr_params));
-		mac_entry .cookie = 0;
+    for (i = 0; i < msg->num_msg; i++) {
+        memcpy(&mac_entry.mac_addr_params, &msg->msg[i].mac_params,
+               sizeof(struct oes_fdb_uc_mac_addr_params));
+        mac_entry.cookie = 0;
 
-		err = is_flush_busy(&msg->msg[i], &flush_busy);
-		MLAG_BAIL_ERROR_MSG(err,"Failed in func is_flush_busy, err %d \n",
-		                                                      	     err);
+        err = is_flush_busy(&msg->msg[i], &flush_busy);
+        MLAG_BAIL_ERROR_MSG(err, "Failed in func is_flush_busy, err %d \n",
+                            err);
 
-		if (flush_busy) {
-			//goto bail;
-			continue;/* for this mac flush is busy*/
-		}
-	    mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_EVENT);
-	    mlag_mac_sync_inc_cnt(MASTER_RX);
-		err = generic_get_entry(&mac_entry);
+        if (flush_busy) {
+            /* goto bail; */
+            continue; /* for this mac flush is busy*/
+        }
+        mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_EVENT);
+        mlag_mac_sync_inc_cnt(MASTER_RX);
+        err = generic_get_entry(&mac_entry);
 
-		if ((err == 0) && mac_entry .cookie) { /* Learning existed mac*/
-			mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_MIGRATE_EVENT);
-			err = process_local_learn_existed_mac(mac_entry .cookie, &msg->msg[i]);
-			MLAG_BAIL_ERROR_MSG(err,"Failed in process local learn message for existed mac, err %d \n",
-			                                                               	     err);
+        if ((err == 0) && mac_entry.cookie) {  /* Learning existed mac*/
+            mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_MIGRATE_EVENT);
+            err = process_local_learn_existed_mac(mac_entry.cookie,
+                                                  &msg->msg[i]);
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in process local learn message for existed mac, err %d \n",
+                                err);
+        }
+        else if ((err != 0) && (err != -ENOENT)) {
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in processing local learn message for existed mac, err %d \n",
+                                err);
+        }
+        else { /* (err = -ENOENT <= new mac ) ||
+                     (err == 0 but cookie == null )<= static mac from Auto learn mode  */
+               /* now build array of newly learned macs  that would be written at once by peer*/
+            mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_NEW_EVENT);
+            gl_buff.msg[gl_buff.num_msg].originator_peer_id =
+                msg->msg[i].originator_peer_id;
+            gl_buff.msg[gl_buff.num_msg].port_cookie = msg->msg[i].port_cookie;
 
-		}
-		else if ((err != 0) && (err != -ENOENT)) {
-			MLAG_BAIL_ERROR_MSG(err,"Failed in processing local learn message for existed mac, err %d \n",
-						                                                               	     err);
-		}
-		else {/* (err = -ENOENT <= new mac ) ||
-                    (err == 0 but cookie == null )<= static mac from Auto learn mode  */
- 			/* now build array of newly learned macs  that would be written at once by peer*/
-			mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_NEW_EVENT);
-			gl_buff.msg[gl_buff.num_msg].originator_peer_id = msg->msg[i].originator_peer_id;
-			gl_buff.msg[gl_buff.num_msg].port_cookie = msg->msg[i].port_cookie;
+            memcpy(&gl_buff.msg[gl_buff.num_msg].mac_params,
+                   &msg->msg[i].mac_params,
+                   sizeof(struct oes_fdb_uc_mac_addr_params));
 
-			memcpy(&gl_buff.msg[gl_buff.num_msg].mac_params,
-					&msg->msg[i].mac_params,
-			        sizeof(struct oes_fdb_uc_mac_addr_params));
-
-			gl_buff.num_msg++;
-		}
+            gl_buff.num_msg++;
+        }
     } /* end of for loop*/
 
     err = process_new_macs_set_to_peer(&gl_buff);
-    MLAG_BAIL_ERROR_MSG(err,"master failed in processing local learn message for new Macs, err %d \n",
-    			                                                         err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "master failed in processing local learn message for new Macs, err %d \n",
+                        err);
 
 
 bail:
@@ -1262,95 +1289,97 @@ bail:
  *
  *  @return 0 when successful, otherwise ERROR
  */
-int generic_get_entry(struct fdb_uc_mac_addr_params *mac_entry)
+int
+generic_get_entry(struct fdb_uc_mac_addr_params *mac_entry)
 {
-  int err = 0;
-  unsigned short data_cnt = 1;
-  struct fdb_uc_key_filter filter;
-  struct router_db_entry *router_mac_entry =NULL;
+    int err = 0;
+    unsigned short data_cnt = 1;
+    struct fdb_uc_key_filter filter;
+    struct router_db_entry *router_mac_entry = NULL;
 
-  filter.filter_by_log_port = FDB_KEY_FILTER_FIELD_NOT_VALID;
-  filter.filter_by_vid = FDB_KEY_FILTER_FIELD_NOT_VALID;
-  err = ctrl_learn_api_uc_mac_addr_get(
-  			OES_ACCESS_CMD_GET,
-  			&filter,
-  			mac_entry ,
-  			&data_cnt,
-  			0
-  			);
-  if(err){
-    if(err == -ENOENT) /* try to search from router mac DB*/
-    {
-
-    	err = mlag_mac_sync_router_mac_db_get  (
-    			              mac_entry->mac_addr_params.mac_addr,
-    			              mac_entry->mac_addr_params.vid,
-    			              &router_mac_entry
-    	                      );
-    	if(err){
-    		goto bail;
-    	}
-    	mac_entry->entry_type = FDB_UC_STATIC;
-    	mac_entry->cookie = router_mac_entry->cookie;
-
+    filter.filter_by_log_port = FDB_KEY_FILTER_FIELD_NOT_VALID;
+    filter.filter_by_vid = FDB_KEY_FILTER_FIELD_NOT_VALID;
+    err = ctrl_learn_api_uc_mac_addr_get(
+        OES_ACCESS_CMD_GET,
+        &filter,
+        mac_entry,
+        &data_cnt,
+        0
+        );
+    if (err) {
+        if (err == -ENOENT) { /* try to search from router mac DB*/
+            err = mlag_mac_sync_router_mac_db_get(
+                mac_entry->mac_addr_params.mac_addr,
+                mac_entry->mac_addr_params.vid,
+                &router_mac_entry
+                );
+            if (err) {
+                goto bail;
+            }
+            mac_entry->entry_type = FDB_UC_STATIC;
+            mac_entry->cookie = router_mac_entry->cookie;
+        }
+        else {
+            goto bail;
+        }
     }
-    else {
-    	goto bail;
-    }
-  }
 
-  bail :
-   return err;
+bail:
+    return err;
 }
 
 
 int
 process_new_macs_set_to_peer( struct mac_sync_multiple_learn_buffer * gl_buff)
 {
-  int i, num_ok =0;
-  int err = 0;
+    int i, num_ok = 0;
+    int err = 0;
 
-  struct fdb_uc_mac_addr_params mac_entry ;
+    struct fdb_uc_mac_addr_params mac_entry;
 
 
-  struct mac_sync_multiple_learn_buffer dup_buff; /* peer manager modifies buffer that  sent to remote peer*/
-  if( gl_buff->num_msg == 0) {
-	  goto bail;
-  }
-  memcpy(&dup_buff ,gl_buff, sizeof(struct mac_sync_multiple_learn_buffer));
-  /*TODO copy only relevant data*/
+    struct mac_sync_multiple_learn_buffer dup_buff; /* peer manager modifies buffer that  sent to remote peer*/
+    if (gl_buff->num_msg == 0) {
+        goto bail;
+    }
+    memcpy(&dup_buff, gl_buff, sizeof(struct mac_sync_multiple_learn_buffer));
+    /*TODO copy only relevant data*/
 
-  err = mlag_mac_sync_peer_mngr_global_learned((void*)&dup_buff, 0);
-  MLAG_LOG(MLAG_LOG_INFO, "master wrote bulk %d macs ,err = %d \n",gl_buff->num_msg, err);
-  /* continue even if the error is not 0*/
+    err = mlag_mac_sync_peer_mngr_global_learned((void*)&dup_buff, 0);
+    MLAG_LOG(MLAG_LOG_INFO, "master wrote bulk %d macs ,err = %d \n",
+             gl_buff->num_msg, err);
+    /* continue even if the error is not 0*/
 
-  /*iterate all written to further  process successfully written mac entries */
-  for(i=0; i<gl_buff->num_msg; i++ ){
-	  memcpy(&mac_entry .mac_addr_params, &gl_buff->msg[i].mac_params,
-	  			 sizeof(struct oes_fdb_uc_mac_addr_params));
+    /*iterate all written to further  process successfully written mac entries */
+    for (i = 0; i < gl_buff->num_msg; i++) {
+        memcpy(&mac_entry.mac_addr_params, &gl_buff->msg[i].mac_params,
+               sizeof(struct oes_fdb_uc_mac_addr_params));
 
-	  err = generic_get_entry(&mac_entry);
+        err = generic_get_entry(&mac_entry);
 
-	  if(err ==0 && mac_entry.cookie /*&& (data_cnt == 1)*/){
-		  num_ok ++;
-		  mlag_mac_sync_inc_cnt(MASTER_TX);
-		  err = process_local_learn_new_mac
-		                        (mac_entry.cookie , &gl_buff->msg[i] );
-		  MLAG_BAIL_ERROR_MSG(err,"Failed in low level processing of local learn for new mac, err %d \n",
-		  			                                                    err);
-	  }
-	  else{
-		     MLAG_LOG(MLAG_LOG_INFO,"master denied new mac (%d): %02x:%02x:%02x:%02x:%02x:%02x \n",i,
-		      			  PRINT_MAC(mac_entry));
-		     mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARN_REGECTED_BY_MASTER);
-	  }
-  }
-  err = 0;/* return err =0 on the process to ignore faults on some  specific mac*/
+        if ((err == 0) && mac_entry.cookie /*&& (data_cnt == 1)*/) {
+            num_ok++;
+            mlag_mac_sync_inc_cnt(MASTER_TX);
+            err = process_local_learn_new_mac
+                      (mac_entry.cookie, &gl_buff->msg[i] );
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in low level processing of local learn for new mac, err %d \n",
+                                err);
+        }
+        else {
+            MLAG_LOG(MLAG_LOG_INFO,
+                     "master denied new mac (%d): %02x:%02x:%02x:%02x:%02x:%02x \n", i,
+                     PRINT_MAC(mac_entry));
+            mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARN_REGECTED_BY_MASTER);
+        }
+    }
+    err = 0; /* return err =0 on the process to ignore faults on some  specific mac*/
 
- bail:
-    if( gl_buff->num_msg) {
-       MLAG_LOG(MLAG_LOG_INFO, "Process new mac :in message  %d macs , conf %d, err = %d \n",
-    		             gl_buff->num_msg, num_ok, err);
+bail:
+    if (gl_buff->num_msg) {
+        MLAG_LOG(MLAG_LOG_INFO,
+                 "Process new mac :in message  %d macs , conf %d, err = %d \n",
+                 gl_buff->num_msg, num_ok, err);
     }
     return err;
 }
@@ -1367,54 +1396,58 @@ static int
 _master_process_local_aged_cb(void* user_data)
 {
     int err = 0;
-    int i = 0,num_ok =0;
+    int i = 0, num_ok = 0;
     struct mac_sync_multiple_age_buffer *msg = NULL;
 
     static struct fdb_uc_mac_addr_params
-                  mac_entry ;
+        mac_entry;
     ASSERT(user_data);
-    global_age_buffer.num_msg =0;
+    global_age_buffer.num_msg = 0;
 
     msg = (struct mac_sync_multiple_age_buffer *)user_data;
 
-    mlag_mac_sync_inc_cnt_num(MAC_SYNC_LOCAL_AGED_EVENT,msg->num_msg);
-    mlag_mac_sync_inc_cnt_num(MASTER_RX,msg->num_msg);
+    mlag_mac_sync_inc_cnt_num(MAC_SYNC_LOCAL_AGED_EVENT, msg->num_msg);
+    mlag_mac_sync_inc_cnt_num(MASTER_RX, msg->num_msg);
 
 
-    for(i =0; i< msg->num_msg; i++){
-    	memcpy(&mac_entry.mac_addr_params, &msg->msg[i].mac_params,
-    			sizeof(struct oes_fdb_uc_mac_addr_params));
+    for (i = 0; i < msg->num_msg; i++) {
+        memcpy(&mac_entry.mac_addr_params, &msg->msg[i].mac_params,
+               sizeof(struct oes_fdb_uc_mac_addr_params));
 
-    	err = generic_get_entry(&mac_entry);
+        err = generic_get_entry(&mac_entry);
 
-    	if (err == -ENOENT) {
-    		mlag_mac_sync_inc_cnt(MAC_SYNC_WRONG_1_LOCAL_AGED_EVENT);
-    		MLAG_LOG(MLAG_LOG_INFO, "master wrong mac : %02x:%02x:%02x:%02x:%02x:%02x \n",
-    				PRINT_MAC (mac_entry) );
-    		err = 0;
-    		continue;
-    	}
-    	MLAG_BAIL_ERROR_MSG(err,"Failed in processing of local age: error get entry from the DB, err %d \n",
-    				                                                       err);
-    	if (mac_entry.cookie) {
-    		num_ok ++;
-    		err = process_local_aged(mac_entry.cookie,  &msg->msg[i]);
-    		MLAG_BAIL_ERROR_MSG(err,"Failed in low level processing of local aged, err %d \n",
-                                                               	     err);
-    	}
-    	else {
-    		/* MLAG_LOG(MLAG_LOG_ERROR, "master:  local aged MAC not found in FDB ");*/
-    		mlag_mac_sync_inc_cnt(MAC_SYNC_WRONG_2_LOCAL_AGED_EVENT);
-    		continue;
-    	}
+        if (err == -ENOENT) {
+            mlag_mac_sync_inc_cnt(MAC_SYNC_WRONG_1_LOCAL_AGED_EVENT);
+            MLAG_LOG(MLAG_LOG_INFO,
+                     "master wrong mac : %02x:%02x:%02x:%02x:%02x:%02x \n",
+                     PRINT_MAC(mac_entry));
+            err = 0;
+            continue;
+        }
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in processing of local age: error get entry from the DB, err %d \n",
+                            err);
+        if (mac_entry.cookie) {
+            num_ok++;
+            err = process_local_aged(mac_entry.cookie,  &msg->msg[i]);
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in low level processing of local aged, err %d \n",
+                                err);
+        }
+        else {
+            /* MLAG_LOG(MLAG_LOG_ERROR, "master:  local aged MAC not found in FDB ");*/
+            mlag_mac_sync_inc_cnt(MAC_SYNC_WRONG_2_LOCAL_AGED_EVENT);
+            continue;
+        }
     }
     err = send_global_age_buffer();
-    MLAG_BAIL_ERROR_MSG(err,"Failed in send_global_age_buffer, err %d \n",
-        				                                      	     err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed in send_global_age_buffer, err %d \n",
+                        err);
 
 bail:
-    MLAG_LOG(MLAG_LOG_INFO , "Process Local Age in message  %d macs , OK %d, err = %d \n",
-	msg->num_msg, num_ok, err);
+    MLAG_LOG(MLAG_LOG_INFO,
+             "Process Local Age in message  %d macs , OK %d, err = %d \n",
+             msg->num_msg, num_ok, err);
     return err;
 }
 
@@ -1445,8 +1478,9 @@ mlag_mac_sync_master_logic_local_aged(void *data)
     if (peer_state[msg->msg.originator_peer_id] == PEER_ENABLE) {
         err = ctrl_learn_api_get_uc_db_access( _master_process_local_aged_cb,
                                                data);
-        MLAG_BAIL_ERROR_MSG(err,"Failed in processing of local age message, err %d \n",
-                				                                      	     err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in processing of local age message, err %d \n",
+                            err);
     }
 bail:
     return err;
@@ -1470,23 +1504,23 @@ mlag_mac_sync_master_logic_fdb_export(uint8_t *data)
     struct mac_sync_mac_sync_master_fdb_get_event_data *rx_msg =
         (struct mac_sync_mac_sync_master_fdb_get_event_data *)data;
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "fdb export called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "fdb export called before init\n");
     }
 
     resp_msg =
-            (struct mac_sync_master_fdb_export_event_data *)fdb_export_data_block;
-    resp_msg->num_entries = 0;/* init fdb export message */
+        (struct mac_sync_master_fdb_export_event_data *)fdb_export_data_block;
+    resp_msg->num_entries = 0; /* init fdb export message */
 
     err =
         ctrl_learn_api_get_uc_db_access( _process_fdb_export_request_cb, data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in process fdb_export , err %d \n",
-               	               			                             err)
+                        err)
 
     /* access built message , calculate size and send it*/
     err = fdb_export_add_router_macs(rx_msg->peer_id);
-    MLAG_BAIL_ERROR_MSG(err,"Failed in fdb_export for router macs, err %d \n",
-            				                                      	     err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed in fdb_export for router macs, err %d \n",
+                        err);
     resp_msg =
         (struct mac_sync_master_fdb_export_event_data *)fdb_export_data_block;
 
@@ -1503,8 +1537,8 @@ mlag_mac_sync_master_logic_fdb_export(uint8_t *data)
     err = mlag_mac_sync_dispatcher_message_send(
         MLAG_MAC_SYNC_ALL_FDB_EXPORT_EVENT, (void *)resp_msg, size,
         rx_msg->peer_id, MASTER_LOGIC);
-    MLAG_BAIL_ERROR_MSG(err,"Failed in send fdb_export message , err %d \n"
-    		                         , err);
+    MLAG_BAIL_ERROR_MSG(err, "Failed in send fdb_export message , err %d \n"
+                        , err);
 
 bail:
     return err;
@@ -1528,8 +1562,9 @@ mlag_mac_sync_master_logic_cookie_func( int oper,   void ** cookie )
         *cookie = cl_pool_get(&cookie_pool);
         if (*cookie == NULL) {
             err = -ENOMEM;
-            MLAG_BAIL_ERROR_MSG(err,"Failed to allocate  master instance from the pool, err %d \n",
-                       				                       	     err);
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed to allocate  master instance from the pool, err %d \n",
+                                err);
         }
         master_cookie = *cookie;
     }
@@ -1567,10 +1602,11 @@ process_local_learn_new_mac(void *cookie,
     err = _local_learn_update_master_and_peers(master_data, msg_data,
                                                SEND_TO_REMOTE_PEERS);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in updating master DB for local learn of the new Mac, err %d\n",
-            err);
-    MLAG_LOG(MLAG_LOG_INFO, "master: learn new Mac completed type %d, port %d\n",
-    		msg_data->mac_params.entry_type ,msg_data->port_cookie);
+                        "Failed in updating master DB for local learn of the new Mac, err %d\n",
+                        err);
+    MLAG_LOG(MLAG_LOG_INFO,
+             "master: learn new Mac completed type %d, port %d\n",
+             msg_data->mac_params.entry_type, msg_data->port_cookie);
 
 bail:
     return err;
@@ -1583,10 +1619,11 @@ is_flush_busy(struct mac_sync_learn_event_data * msg_data, int *flush_busy)
 
     if (msg_data->mac_params.entry_type != FDB_UC_STATIC) {
         err = mlag_mac_sync_master_logic_is_flush_busy( &msg_data->mac_params,
-                                                       msg_data->originator_peer_id,
-                                                       flush_busy);
-        MLAG_BAIL_ERROR_MSG(err,"Failed in getting flush_busy status, err %d \n",
-                   				                                      	     err);
+                                                        msg_data->originator_peer_id,
+                                                        flush_busy);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in getting flush_busy status, err %d \n",
+                            err);
     }
 bail:
     return err;
@@ -1619,16 +1656,16 @@ process_local_learn_existed_mac(void * cookie,
     master_data = (struct master_logic_data *)cookie;
 
     if ((master_data->entry_type !=
-             msg_data->mac_params.entry_type)
+         msg_data->mac_params.entry_type)
         &&
         (msg_data->mac_params.entry_type == FDB_UC_STATIC)
         ) {
         /* was previously configured dynamic and user configures static instead*/
-        err =_local_learn_update_master_and_peers(master_data, msg_data,
-                                             SEND_TO_ALL_PEERS );
-        MLAG_BAIL_ERROR_MSG(err,"Failed in updating master DB for local learn of Mac that changed type to static , err %d \n",
-                                      				                    err);
-
+        err = _local_learn_update_master_and_peers(master_data, msg_data,
+                                                   SEND_TO_ALL_PEERS );
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in updating master DB for local learn of Mac that changed type to static , err %d \n",
+                            err);
     }
     else if ((master_data->entry_type != msg_data->mac_params.entry_type)
              &&
@@ -1648,10 +1685,11 @@ process_local_learn_existed_mac(void * cookie,
             &&
             (master_data->port != NON_MLAG_PORT)
             ) { /* MAC locally learned on the other MLAG port - traffic*/
-            err =_local_learn_update_master_and_peers(master_data, msg_data,
-                                                 SEND_TO_ORIGINATOR_PEER);
-            MLAG_BAIL_ERROR_MSG(err,"Failed in updating master DB for local learn of existed Mac , err %d \n",
-                                          				                                      	     err);
+            err = _local_learn_update_master_and_peers(master_data, msg_data,
+                                                       SEND_TO_ORIGINATOR_PEER);
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed in updating master DB for local learn of existed Mac , err %d \n",
+                                err);
         }
         else if (((master_data->peer_bmap &
                    (1 << msg_data->originator_peer_id)))
@@ -1660,11 +1698,10 @@ process_local_learn_existed_mac(void * cookie,
                  &&
                  (master_data->port != NON_MLAG_PORT)
                  ) {
-
-        	/*
+            /*
                currently ignore this case  - it can be explained by slowness of writing to HW.
                and meantime next packet of same macs accepted in control learning block from the HW
-            */
+             */
         }
         else {  /*MAC migration*/
             gettimeofday(&tv_start, NULL);
@@ -1680,8 +1717,9 @@ process_local_learn_existed_mac(void * cookie,
                 err = _local_learn_update_master_and_peers(master_data,
                                                            msg_data,
                                                            SEND_TO_ALL_PEERS);
-                MLAG_BAIL_ERROR_MSG(err,"Failed in updating master DB for local learn of migrated Mac , err %d \n",
-                              				                                      	     err);
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed in updating master DB for local learn of migrated Mac , err %d \n",
+                                    err);
             }
         }
     }
@@ -1706,10 +1744,11 @@ process_local_aged(void * cookie, struct mac_sync_age_event_data * msg_data)
     struct master_logic_data *master_data;
 
     if (cookie == NULL) {
-    	if (msg_data) {
-    	    MLAG_LOG(MLAG_LOG_NOTICE, "aged mac with null cookie: %02x:%02x:%02x:%02x:%02x:%02x \n",
-    	    		 PRINT_MAC_OES (msg_data->mac_params) );
-    	    goto bail;
+        if (msg_data) {
+            MLAG_LOG(MLAG_LOG_NOTICE,
+                     "aged mac with null cookie: %02x:%02x:%02x:%02x:%02x:%02x \n",
+                     PRINT_MAC_OES(msg_data->mac_params));
+            goto bail;
         }
     }
     ASSERT(msg_data);
@@ -1719,19 +1758,18 @@ process_local_aged(void * cookie, struct mac_sync_age_event_data * msg_data)
     master_data = (struct master_logic_data *)cookie;
 
     if (msg_data->originator_peer_id >= MLAG_MAX_PEERS) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Invalid parameters in process of local aged event: originator_peer_id=%d\n",
-    			msg_data->originator_peer_id);
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameters in process of local aged event: originator_peer_id=%d\n",
+                            msg_data->originator_peer_id);
     }
 
 
     master_data->peer_bmap &= ~(1 << msg_data->originator_peer_id);
     if (master_data->peer_bmap == 0) {
-
-    	memcpy(&global_age_buffer.msg[global_age_buffer.num_msg],
-    			   msg_data, sizeof(*msg_data));
-    	global_age_buffer.num_msg ++;
+        memcpy(&global_age_buffer.msg[global_age_buffer.num_msg],
+               msg_data, sizeof(*msg_data));
+        global_age_buffer.num_msg++;
     }
 
 bail:
@@ -1744,56 +1782,57 @@ bail:
  *
  *  @return 0 when successful, otherwise ERROR
  */
-int fdb_export_add_router_macs(uint8_t peer_id)
+int
+fdb_export_add_router_macs(uint8_t peer_id)
 {
-	struct  mlag_master_election_status current_status;
-	struct mac_sync_learn_event_data *glob_learn_msg = NULL;
-	uint8_t my_peer_id = 0;
-	int err = 0;
+    struct  mlag_master_election_status current_status;
+    struct mac_sync_learn_event_data *glob_learn_msg = NULL;
+    uint8_t my_peer_id = 0;
+    int err = 0;
     struct mac_sync_master_fdb_export_event_data  *resp_msg = NULL;
     struct router_db_entry *item_p;
     struct router_db_entry *prev_item_p;
 
-	err = mlag_master_election_get_status(&current_status);
-	MLAG_BAIL_ERROR_MSG(err, "Failed in get status from master election  for router macs in fdb_export, err %d \n",
-	                                   				                 err);
+    err = mlag_master_election_get_status(&current_status);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in get status from master election  for router macs in fdb_export, err %d \n",
+                        err);
     my_peer_id = current_status.my_peer_id;
 
     if (peer_id == my_peer_id) { /* no need to send this message to the local peer*/
         goto bail;
     }
     resp_msg =
-	   (struct mac_sync_master_fdb_export_event_data *)fdb_export_data_block;
+        (struct mac_sync_master_fdb_export_event_data *)fdb_export_data_block;
     /* pass all router database and add Global learn message to the buffer
      * for each route found with Add operation*/
 
     err = mlag_mac_sync_router_mac_db_first_record(&item_p);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in getting first router mac record for fdb_export, err %d \n",
-    	                                   				                 err);
-    while(item_p){
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in getting first router mac record for fdb_export, err %d \n",
+                        err);
+    while (item_p) {
+        if (item_p->last_action == ADD_ROUTER_MAC) {
+            glob_learn_msg =
+                &(resp_msg->entry) + resp_msg->num_entries;
+            glob_learn_msg->port_cookie = 0;
+            glob_learn_msg->mac_params.entry_type = FDB_UC_STATIC;
+            glob_learn_msg->mac_params.log_port = NON_MLAG_PORT;
+            memcpy(        &glob_learn_msg->mac_params.mac_addr,
+                           &item_p->mac_addr,
+                           sizeof(item_p->mac_addr));
+            glob_learn_msg->mac_params.vid = item_p->vid;
+            glob_learn_msg->originator_peer_id = my_peer_id;
 
-    	if(item_p->last_action == ADD_ROUTER_MAC){
-			glob_learn_msg =
-						  &(resp_msg->entry) + resp_msg->num_entries;
-			glob_learn_msg->port_cookie = 0;
-			glob_learn_msg->mac_params.entry_type = FDB_UC_STATIC;
-			glob_learn_msg->mac_params.log_port   = NON_MLAG_PORT;
-			memcpy(        &glob_learn_msg->mac_params.mac_addr,
-						   &item_p->mac_addr,
-						   sizeof(item_p->mac_addr));
-			glob_learn_msg->mac_params.vid        = item_p->vid;
-			glob_learn_msg->originator_peer_id    = my_peer_id;
-
-			resp_msg->num_entries ++;
-    	}
-		prev_item_p = item_p;
-		mlag_mac_sync_router_mac_db_next_record(
-					prev_item_p, &item_p);
-	}
+            resp_msg->num_entries++;
+        }
+        prev_item_p = item_p;
+        mlag_mac_sync_router_mac_db_next_record(
+            prev_item_p, &item_p);
+    }
 
 bail:
     return err;
-
 }
 
 /*
@@ -1829,8 +1868,9 @@ _process_fdb_export_request_cb(void * data)
     struct fdb_uc_mac_addr_params mac_param_list[MAX_ENTRIES_IN_TRY];
 
     err = mlag_master_election_get_status(&current_status);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in get status from master election  for dynamic macs in fdb_export, err %d \n",
-	                                   				                 err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in get status from master election  for dynamic macs in fdb_export, err %d \n",
+                        err);
     my_peer_id = current_status.my_peer_id;
 
     if (msg->peer_id == my_peer_id) { /* no need to send this message to the local peer*/
@@ -1858,8 +1898,9 @@ _process_fdb_export_request_cb(void * data)
             err = 0;
             goto bail;
         }
-        MLAG_BAIL_ERROR_MSG(err, "Failed in fdb_export callback :get mac from the control learning lib , err %d \n",
-        	                                   				                 err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in fdb_export callback :get mac from the control learning lib , err %d \n",
+                            err);
         /*other errors are critical*/
         /*to Process received entries */
         cnt += data_cnt;
@@ -1873,7 +1914,7 @@ _process_fdb_export_request_cb(void * data)
                     {
                         glob_learn_msg =
                             &(resp_msg->entry) + resp_msg->num_entries;
-                       /* glob_learn_msg->opcode  =  MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;*/
+                        /* glob_learn_msg->opcode  =  MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT;*/
                         glob_learn_msg->originator_peer_id = my_peer_id;
                         /*put some peer id  that not equal msg->peer_id */
                         memcpy(&glob_learn_msg->mac_params,
@@ -1929,8 +1970,9 @@ _master_process_peer_down_cb(void* data)
 
 
     err = mlag_master_election_get_status(&current_status);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in get status from master election  for processing of peer_down, err %d \n",
-    	                                   				                 err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in get status from master election  for processing of peer_down, err %d \n",
+                        err);
     MLAG_LOG(MLAG_LOG_NOTICE, "Peer down event in Master\n");
 
     my_peer_id = current_status.my_peer_id;
@@ -1945,11 +1987,12 @@ _master_process_peer_down_cb(void* data)
     access_cmd = OES_ACCESS_CMD_GET_FIRST;
     data_cnt = 1;
     msg_data.originator_peer_id = msg->mlag_id;
-    global_age_buffer.num_msg =0;
+    global_age_buffer.num_msg = 0;
 
     err = mlag_mac_sync_peer_check_init_delete_list();
-    MLAG_BAIL_ERROR_MSG(err, "Failed in initialization of delete_list for processing of peer_down , err %d \n",
-    	                                   				                 err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in initialization of delete_list for processing of peer_down , err %d \n",
+                        err);
     while (data_cnt != 0) {
         err = ctrl_learn_api_uc_mac_addr_get(
             access_cmd,
@@ -1962,9 +2005,10 @@ _master_process_peer_down_cb(void* data)
             err = 0;
             goto bail;
         }
-        MLAG_BAIL_ERROR_MSG(err, "Failed in peer_down procesing :get mac from the control learning lib , err %d \n",
-               	                                   				                 err);
-                   /*other errors are critical*/
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in peer_down procesing :get mac from the control learning lib , err %d \n",
+                            err);
+        /*other errors are critical*/
         /*to Process received entries */
         for (i = 0; i < data_cnt; i++) {
             cnt++;
@@ -1972,22 +2016,25 @@ _master_process_peer_down_cb(void* data)
             memcpy(&msg_data.mac_params, &mac_param_list[i].mac_addr_params,
                    sizeof(msg_data.mac_params));
             if (mac_param_list[i].entry_type != FDB_UC_STATIC) {
-
                 err = process_local_aged(mac_param_list[i].cookie, &msg_data);
-                MLAG_BAIL_ERROR_MSG(err, "Failed in process local aged upon peer_down, err %d \n",
-                    	                                   				     err);
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed in process local aged upon peer_down, err %d \n",
+                                    err);
 
-                if (global_age_buffer.num_msg == (CTRL_LEARN_FDB_NOTIFY_SIZE_MAX) ){
-                	 err = send_global_age_buffer();
-                	 MLAG_BAIL_ERROR_MSG(err, "Failed to send global age buffer upon peer_down , err %d \n",
-                	                    	                                    err);
+                if (global_age_buffer.num_msg ==
+                    (CTRL_LEARN_FDB_NOTIFY_SIZE_MAX)) {
+                    err = send_global_age_buffer();
+                    MLAG_BAIL_ERROR_MSG(err,
+                                        "Failed to send global age buffer upon peer_down , err %d \n",
+                                        err);
                 }
             }
             else { /* 2. if entry == static and port == ipl*/
                 err = mlag_mac_sync_peer_mngr_addto_delete_list_ipl_static_mac(
                     &mac_param_list[i].mac_addr_params);
-                MLAG_BAIL_ERROR_MSG(err, "Failed add macs to delete list upon peer_down , err %d \n",
-                                   	                       				     err);
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed add macs to delete list upon peer_down , err %d \n",
+                                    err);
             }
         }
         /* prepare to next cycle : copy last mac
@@ -2004,8 +2051,9 @@ bail:
             MLAG_LOG(MLAG_LOG_ERROR, "error process delete list %d \n", err);
         }
         err = send_global_age_buffer();
-        MLAG_BAIL_ERROR_MSG(err, "Failed to send global age buffer upon peer_down , err %d \n",
-                                           	           	     err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to send global age buffer upon peer_down , err %d \n",
+                            err);
     }
     mlag_mac_sync_peer_init_delete_list();
     MLAG_LOG(MLAG_LOG_NOTICE, "completed . processed %d macs, err  %d\n", cnt,
@@ -2059,8 +2107,8 @@ _local_learn_update_master_and_peers(struct master_logic_data *master_data,
         master_data->peer_bmap |= (1 << msg_data->originator_peer_id);
 
         memcpy(&gl_originator_buff.msg[gl_originator_buff.num_msg],
-        		  msg_data ,sizeof( struct mac_sync_learn_event_data ));
-        gl_originator_buff.num_msg ++;
+               msg_data, sizeof(struct mac_sync_learn_event_data));
+        gl_originator_buff.num_msg++;
         goto bail;
     }
 
@@ -2072,14 +2120,14 @@ _local_learn_update_master_and_peers(struct master_logic_data *master_data,
     master_data->timestamp = tv_start.tv_sec;
 
     if (type == SEND_TO_ALL_PEERS) {
-			memcpy(&gl_all_buff.msg[gl_all_buff.num_msg],
-			msg_data ,sizeof( struct mac_sync_learn_event_data ));
-			gl_all_buff.num_msg ++;
+        memcpy(&gl_all_buff.msg[gl_all_buff.num_msg],
+               msg_data, sizeof(struct mac_sync_learn_event_data));
+        gl_all_buff.num_msg++;
     }
     else if (type == SEND_TO_REMOTE_PEERS) {
-		memcpy(&gl_remote_buff.msg[gl_remote_buff.num_msg],
-						  msg_data ,sizeof( struct mac_sync_learn_event_data ));
-		gl_remote_buff.num_msg ++;
+        memcpy(&gl_remote_buff.msg[gl_remote_buff.num_msg],
+               msg_data, sizeof(struct mac_sync_learn_event_data));
+        gl_remote_buff.num_msg++;
     }
 bail:
     return err;
@@ -2092,33 +2140,34 @@ bail:
 int
 send_global_age_buffer()
 {
-	 int err = 0;
-	 int i =0;
-	 int sizeof_msg =0;
-	 if (global_age_buffer.num_msg ) {
+    int err = 0;
+    int i = 0;
+    int sizeof_msg = 0;
+    if (global_age_buffer.num_msg) {
+        sizeof_msg = sizeof(struct mac_sync_multiple_age_event_data) +
+                     global_age_buffer.num_msg *
+                     sizeof(struct mac_sync_age_event_data);
 
-		 sizeof_msg =  sizeof(struct mac_sync_multiple_age_event_data)+
-				 global_age_buffer.num_msg *
-				 sizeof(struct mac_sync_age_event_data);
-
-		 for (i = 0; i < MLAG_MAX_PEERS; i++) {
-			  if (peer_state[i] != PEER_DOWN) {
-				  /* Send Global age message to all peer(s) - msg_data*/
-				  mlag_mac_sync_inc_cnt(MASTER_TX);
-				  err = mlag_mac_sync_dispatcher_message_send(
-					  MLAG_MAC_SYNC_GLOBAL_AGED_EVENT, (void *)&global_age_buffer,
-					  sizeof_msg,
-					  i, MASTER_LOGIC);
-				  MLAG_BAIL_ERROR_MSG(err, "Failed to send global_aged event from the buffer , err %d \n",
-						                     err);
-			  }
-		  }
-		 MLAG_LOG(MLAG_LOG_INFO, "Master sends Gl Age buff %d  messages\n",
-		        	   			    global_age_buffer.num_msg);
-		 global_age_buffer.num_msg =0;
-	 }
+        for (i = 0; i < MLAG_MAX_PEERS; i++) {
+            if (peer_state[i] != PEER_DOWN) {
+                /* Send Global age message to all peer(s) - msg_data*/
+                mlag_mac_sync_inc_cnt(MASTER_TX);
+                err = mlag_mac_sync_dispatcher_message_send(
+                    MLAG_MAC_SYNC_GLOBAL_AGED_EVENT,
+                    (void *)&global_age_buffer,
+                    sizeof_msg,
+                    i, MASTER_LOGIC);
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed to send global_aged event from the buffer , err %d \n",
+                                    err);
+            }
+        }
+        MLAG_LOG(MLAG_LOG_INFO, "Master sends Gl Age buff %d  messages\n",
+                 global_age_buffer.num_msg);
+        global_age_buffer.num_msg = 0;
+    }
 bail:
- return err;
+    return err;
 }
 
 
@@ -2129,84 +2178,94 @@ bail:
 int
 send_global_learn_buffers()
 {
-   int err = 0;
-   int i = 0;
-   int sizeof_msg =0;
-   struct mlag_master_election_status current_status;
+    int err = 0;
+    int i = 0;
+    int sizeof_msg = 0;
+    struct mlag_master_election_status current_status;
 
-   err = mlag_master_election_get_status(&current_status);
-   MLAG_BAIL_ERROR_MSG(err, "Failed in get status from master election  for processing of learn buffers, err %d \n",
-     	                                   				                 err);
+    err = mlag_master_election_get_status(&current_status);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in get status from master election  for processing of learn buffers, err %d \n",
+                        err);
 
-   if (gl_all_buff.num_msg) {
-	   sizeof_msg = sizeof(struct mac_sync_multiple_learn_event_data);
-	   if(gl_all_buff.num_msg >1 ){
-		   sizeof_msg += ((gl_all_buff.num_msg -1)*
-				   sizeof(struct mac_sync_learn_event_data));
-	   }
-	   for (i = 0; i < MLAG_MAX_PEERS; i++) {
-		   if (peer_state[i] != PEER_DOWN) {
-			   /* Send Global learn message to all peer(s) */
-			   mlag_mac_sync_inc_cnt(MASTER_TX);
-			   err = mlag_mac_sync_dispatcher_message_send(
-					   MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT, (void *)&gl_all_buff,
-					   sizeof_msg,
-					   i, MASTER_LOGIC);
-			   MLAG_BAIL_ERROR_MSG(err, "Failed to send global_learned event to all peers, err %d \n",
-			                                      	                       	    err);
-		   }
-	   }
-	   MLAG_LOG(MLAG_LOG_INFO, "Master sends GL all buff %d  messages\n",
-			   gl_all_buff.num_msg);
-   }
-   if (gl_remote_buff.num_msg) {
-	   sizeof_msg = sizeof(struct mac_sync_multiple_learn_event_data);
-	   if(gl_remote_buff.num_msg >1 ){
-		   sizeof_msg += ((gl_remote_buff.num_msg -1)*
-				   sizeof(struct mac_sync_learn_event_data));
-	   }
-	   mlag_mac_sync_inc_cnt_num(MAC_SYNC_LOCAL_LEARNED_NEW_EVENT_PROCESSED ,gl_remote_buff.num_msg );
-	   for (i = 0; i < MLAG_MAX_PEERS; i++) {
-		   if (peer_state[i] != PEER_DOWN &&  (i != current_status.my_peer_id)) {
-			   /* Send Global learn message to all peer(s) */
-			   mlag_mac_sync_inc_cnt(MASTER_TX);
-			   err = mlag_mac_sync_dispatcher_message_send(
-					   MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT, (void *)&gl_remote_buff,
-					   sizeof_msg,
-					   i, MASTER_LOGIC);
-			   MLAG_BAIL_ERROR_MSG(err, "Failed to send global learned event to remote peers, err %d \n",
-			                                      	                        err);
-		   }
-	   }
-	   MLAG_LOG(MLAG_LOG_INFO, "Master sends GL remote buff %d  messages origin %d\n",
-	   			   gl_remote_buff.num_msg, gl_remote_buff.msg[0].originator_peer_id);
-   }
+    if (gl_all_buff.num_msg) {
+        sizeof_msg = sizeof(struct mac_sync_multiple_learn_event_data);
+        if (gl_all_buff.num_msg > 1) {
+            sizeof_msg += ((gl_all_buff.num_msg - 1) *
+                           sizeof(struct mac_sync_learn_event_data));
+        }
+        for (i = 0; i < MLAG_MAX_PEERS; i++) {
+            if (peer_state[i] != PEER_DOWN) {
+                /* Send Global learn message to all peer(s) */
+                mlag_mac_sync_inc_cnt(MASTER_TX);
+                err = mlag_mac_sync_dispatcher_message_send(
+                    MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT, (void *)&gl_all_buff,
+                    sizeof_msg,
+                    i, MASTER_LOGIC);
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed to send global_learned event to all peers, err %d \n",
+                                    err);
+            }
+        }
+        MLAG_LOG(MLAG_LOG_INFO, "Master sends GL all buff %d  messages\n",
+                 gl_all_buff.num_msg);
+    }
+    if (gl_remote_buff.num_msg) {
+        sizeof_msg = sizeof(struct mac_sync_multiple_learn_event_data);
+        if (gl_remote_buff.num_msg > 1) {
+            sizeof_msg += ((gl_remote_buff.num_msg - 1) *
+                           sizeof(struct mac_sync_learn_event_data));
+        }
+        mlag_mac_sync_inc_cnt_num(MAC_SYNC_LOCAL_LEARNED_NEW_EVENT_PROCESSED,
+                                  gl_remote_buff.num_msg );
+        for (i = 0; i < MLAG_MAX_PEERS; i++) {
+            if ((peer_state[i] != PEER_DOWN) &&
+                (i != current_status.my_peer_id)) {
+                /* Send Global learn message to all peer(s) */
+                mlag_mac_sync_inc_cnt(MASTER_TX);
+                err = mlag_mac_sync_dispatcher_message_send(
+                    MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT,
+                    (void *)&gl_remote_buff,
+                    sizeof_msg,
+                    i, MASTER_LOGIC);
+                MLAG_BAIL_ERROR_MSG(err,
+                                    "Failed to send global learned event to remote peers, err %d \n",
+                                    err);
+            }
+        }
+        MLAG_LOG(MLAG_LOG_INFO,
+                 "Master sends GL remote buff %d  messages origin %d\n",
+                 gl_remote_buff.num_msg,
+                 gl_remote_buff.msg[0].originator_peer_id);
+    }
 
-   if (gl_originator_buff.num_msg){
-	   sizeof_msg = sizeof(struct mac_sync_multiple_learn_event_data);
-	   if(gl_originator_buff.num_msg >1 ){
-	  		   sizeof_msg += ((gl_originator_buff.num_msg -1)*
-	  				   sizeof(struct mac_sync_learn_event_data));
-	   }
-	   mlag_mac_sync_inc_cnt(MASTER_TX);
-	   err = mlag_mac_sync_dispatcher_message_send(
-					   MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT,
-					   (void *)&gl_originator_buff,
-					   sizeof_msg,
-					   gl_originator_buff.msg[0].originator_peer_id
-					   , MASTER_LOGIC);
-	   MLAG_BAIL_ERROR_MSG(err, "Failed to send global learned event to originator peer, err %d \n",
-	  			                                      	                        err);
+    if (gl_originator_buff.num_msg) {
+        sizeof_msg = sizeof(struct mac_sync_multiple_learn_event_data);
+        if (gl_originator_buff.num_msg > 1) {
+            sizeof_msg += ((gl_originator_buff.num_msg - 1) *
+                           sizeof(struct mac_sync_learn_event_data));
+        }
+        mlag_mac_sync_inc_cnt(MASTER_TX);
+        err = mlag_mac_sync_dispatcher_message_send(
+            MLAG_MAC_SYNC_GLOBAL_LEARNED_EVENT,
+            (void *)&gl_originator_buff,
+            sizeof_msg,
+            gl_originator_buff.msg[0].originator_peer_id
+            , MASTER_LOGIC);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to send global learned event to originator peer, err %d \n",
+                            err);
 
-       MLAG_LOG(MLAG_LOG_INFO, "Master sends GL originator buff %d  messages\n",
-       	   			   gl_originator_buff.num_msg);
-   }
-   gl_all_buff.num_msg =0;
-   gl_originator_buff.num_msg =0;
-   gl_remote_buff.num_msg =0;
+        MLAG_LOG(MLAG_LOG_INFO,
+                 "Master sends GL originator buff %d  messages\n",
+                 gl_originator_buff.num_msg);
+    }
+    gl_all_buff.num_msg = 0;
+    gl_originator_buff.num_msg = 0;
+    gl_remote_buff.num_msg = 0;
 
- bail:
-   return err;
+bail:
+    return err;
 }
 
 
@@ -2222,10 +2281,10 @@ mlag_mac_sync_master_logic_is_peer_enabled(int peer_id, int *res)
     int err = 0;
     ASSERT(res);
     if (peer_id >= MLAG_MAX_PEERS) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Invalid parameters in master logic is peer enabled: peer_id=%d\n",
-    			peer_id);
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameters in master logic is peer enabled: peer_id=%d\n",
+                            peer_id);
     }
     *res = (peer_state[peer_id] != PEER_DOWN);
 
@@ -2291,10 +2350,10 @@ bail:
  * @return 0 when successful, otherwise ERROR
  */
 int
-mlag_mac_sync_master_logic_notify_fsm_idle(uint64_t key , int timeout)
+mlag_mac_sync_master_logic_notify_fsm_idle(uint64_t key, int timeout)
 {
     int err = 0;
-    unsigned short   vid = 0;
+    unsigned short vid = 0;
     unsigned long log_port = 0;
 
 
@@ -2305,26 +2364,29 @@ mlag_mac_sync_master_logic_notify_fsm_idle(uint64_t key , int timeout)
 
     MLAG_LOG(MLAG_LOG_INFO,
              "mlag_mac_sync_master_logic_notify_fsm_idle(%d) key %" PRIx64 " vid [%u] log_port [%lu]\n",
-             timeout,key,vid,log_port);
+             timeout, key, vid, log_port);
 
 
     /* Check if fsm exist in vlan port system flush fsm map */
-    if (vid != 0 && log_port != 0){
+    if ((vid != 0) && (log_port != 0)) {
         /* port+vid flush , use vlan_port_flush_fsm_pool */
         err = mlag_mac_sync_master_logic_inset_fsm_to_pool(
             &vlan_ports_system_flush_fsm_map, &vlan_port_flush_fsm_pool, key);
-        MLAG_BAIL_ERROR_MSG(err, "Failed to insert flush sm to pool 1 upon idle, err %d \n",
-       			                                      	                        err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to insert flush sm to pool 1 upon idle, err %d \n",
+                            err);
 
         MLAG_LOG(MLAG_LOG_INFO,
                  "fsm returned back to vlan port flush pool\n");
-    }else{
+    }
+    else {
         /* global/port/vlanflush , use vlan_port_system_flush_fsm_pool */
         err = mlag_mac_sync_master_logic_inset_fsm_to_pool(
             &vlan_ports_system_flush_fsm_map, &vlan_port_system_flush_fsm_pool,
             key);
-        MLAG_BAIL_ERROR_MSG(err, "Failed to insert flush sm to pool 2 upon idle, err %d \n",
-               			                                      	       err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to insert flush sm to pool 2 upon idle, err %d \n",
+                            err);
 
         MLAG_LOG(MLAG_LOG_INFO,
                  "fsm returned back to vlan port system flush pool\n");
@@ -2358,22 +2420,23 @@ master_print_mac_params(void * data,  void (*dump_cb)(const char *, ...))
         &mac_params,
         &data_cnt, 1 );
 
-    MLAG_BAIL_ERROR_MSG(err, "Failed in get mac info :get mac from the control learning lib , err %d \n",
-              	                                   				                 err);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in get mac info :get mac from the control learning lib , err %d \n",
+                        err);
     if (mac_params.cookie) {
         master_data =
             (struct master_logic_data *)mac_params.cookie;
     }
 
-        DUMP_OR_LOG("\ntype %d, mac %02x:%02x:%02x:%02x:%02x:%02x, "
-                    "port %d, vlan %d - timestamp %d, peer_bmap %d \n",
-                    mac_params.entry_type,
-                    PRINT_MAC(mac_params),
-                    (int) mac_params.mac_addr_params.log_port,
-                    mac_params.mac_addr_params.vid,
-                    (mac_params.cookie) ? master_data->timestamp : 0,
-                    (mac_params.cookie) ? master_data->peer_bmap : 0
-                   );
+    DUMP_OR_LOG("\ntype %d, mac %02x:%02x:%02x:%02x:%02x:%02x, "
+                "port %d, vlan %d - timestamp %d, peer_bmap %d \n",
+                mac_params.entry_type,
+                PRINT_MAC(mac_params),
+                (int) mac_params.mac_addr_params.log_port,
+                mac_params.mac_addr_params.vid,
+                (mac_params.cookie) ? master_data->timestamp : 0,
+                (mac_params.cookie) ? master_data->peer_bmap : 0
+                );
 
 bail:
     return err;
@@ -2407,18 +2470,18 @@ mlag_mac_sync_master_logic_print(void (*dump_cb)(const char *,
 
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync master logic print called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "mac sync master logic print called before init\n");
     }
 
     DUMP_OR_LOG("peer states: \n");
 
     for (i = 0; i < 2; i++) {
-    	DUMP_OR_LOG("peer %d. %s\n", i,
+        DUMP_OR_LOG("peer %d. %s\n", i,
                     (peer_state[i] == PEER_DOWN) ? "DOWN" :
                     (peer_state[i] ==
                      PEER_TX_ENABLE) ? "TX ENABLE" : "ENABLE");
-
     }
 
 
@@ -2436,8 +2499,9 @@ mlag_mac_sync_master_logic_print(void (*dump_cb)(const char *,
             goto bail;
         }
 
-        MLAG_BAIL_ERROR_MSG(err, "Failed in ctrl_learn_api_uc_mac_addr_get , err %d \n",
-               			                             err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in ctrl_learn_api_uc_mac_addr_get , err %d \n",
+                            err);
 
         /*to Process received entries */
 
@@ -2447,16 +2511,16 @@ mlag_mac_sync_master_logic_print(void (*dump_cb)(const char *,
                     (struct master_logic_data *)mac_param_list[i].cookie;
             }
             if ((cnt < 1000) && verbosity) {
-            	DUMP_OR_LOG ("\ntype %d, mac %02x:%02x:%02x:%02x:%02x:%02x, "
+                DUMP_OR_LOG("\ntype %d, mac %02x:%02x:%02x:%02x:%02x:%02x, "
                             "port %d, vlan %d - timestamp %d, peer_bmap %d \n",
                             mac_param_list[i].entry_type,
-                            PRINT_MAC(mac_param_list[i]),
+                            PRINT_MAC(
+                                mac_param_list[i]),
                             (int) mac_param_list[i].mac_addr_params.log_port,
                             mac_param_list[i].mac_addr_params.vid,
                             (mac_param_list[i].cookie) ? master_data->timestamp : 0,
                             (mac_param_list[i].cookie) ? master_data->peer_bmap : 0
                             );
-
             }
             cnt++;
         }
@@ -2469,7 +2533,7 @@ mlag_mac_sync_master_logic_print(void (*dump_cb)(const char *,
 
 
 bail:
-    	DUMP_OR_LOG("\n=== total macs =%d === active flush fsms %d\n",
+    DUMP_OR_LOG("\n=== total macs =%d === active flush fsms %d\n",
                 cnt, flash_fsm_in_qmap_cnt);
     return err;
 }
@@ -2483,17 +2547,18 @@ bail:
  * @return 0 when successful, otherwise ERROR
  */
 int
-mlag_mac_sync_master_logic_print_master(void *data,  void (*dump_cb)(const char *,
-		...))
+mlag_mac_sync_master_logic_print_master(void *data,  void (*dump_cb)(
+                                            const char *,
+                                            ...))
 {
-	int err = 0;
-	struct master_logic_data  * master_data = NULL;
-	ASSERT(data);
+    int err = 0;
+    struct master_logic_data  * master_data = NULL;
+    ASSERT(data);
 
-	master_data = (struct master_logic_data  * )data;
-	DUMP_OR_LOG("     timestamp %d, peer_bmap %d \n",
-				master_data->timestamp ,
-				master_data->peer_bmap );
+    master_data = (struct master_logic_data  * )data;
+    DUMP_OR_LOG("     timestamp %d, peer_bmap %d \n",
+                master_data->timestamp,
+                master_data->peer_bmap );
 
 bail:
     return err;
@@ -2511,20 +2576,43 @@ master_print_free_cookie_pool_cnt(void (*dump_cb)(const char *, ...))
     int count = 0;
 
     if (!is_inited) {
-    	MLAG_BAIL_ERROR_MSG(ECANCELED, "print cookie pool called before init\n");
+        MLAG_BAIL_ERROR_MSG(ECANCELED,
+                            "print cookie pool called before init\n");
     }
 
     count = cl_pool_count(&cookie_pool);
 
-    DUMP_OR_LOG( "\n Master cookie pool: alloc count %d, free blocks count %d, act. flush fsm %d, pool1 %d pool2 %d\n",
-                (MAX_FDB_ENTRIES - count),
-                count,
-                flash_fsm_in_qmap_cnt ,
-                (int)cl_list_count(&vlan_port_system_flush_fsm_pool),
-                (int)cl_list_count(&vlan_port_flush_fsm_pool) );
+    DUMP_OR_LOG(
+        "\n Master cookie pool: alloc count %d, free blocks count %d, act. flush fsm %d, pool1 %d pool2 %d\n",
+        (MAX_FDB_ENTRIES - count),
+        count,
+        flash_fsm_in_qmap_cnt,
+        (int)cl_list_count(&vlan_port_system_flush_fsm_pool),
+        (int)cl_list_count(&vlan_port_flush_fsm_pool));
 
 bail:
     return;
+}
+
+/**
+ *  This function returns free pool count
+ *  @param[out]  cnt  - pointer to the returned number of free master pools
+ *  @return
+ */
+int
+mlag_mac_sync_master_logic_get_free_cookie_cnt(uint32_t *cnt)
+{
+	int err = 0;
+	if (!is_inited) {
+	        MLAG_BAIL_ERROR_MSG(ECANCELED,
+	                            " get_free_cookie_cnt called before init\n");
+	}
+	ASSERT(cnt);
+
+    *cnt =   cl_pool_count(&cookie_pool) ;
+
+ bail:
+    return err;
 }
 
 
@@ -2539,7 +2627,7 @@ bail:
  */
 int
 mlag_mac_sync_master_logic_is_flush_busy(
-		struct mac_sync_uc_mac_addr_params * mac_params, uint8_t peer_originator,
+    struct mac_sync_uc_mac_addr_params * mac_params, uint8_t peer_originator,
     int *busy)
 {
     int err = 0;
@@ -2554,8 +2642,8 @@ mlag_mac_sync_master_logic_is_flush_busy(
 
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "is flush busy called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "is flush busy called before init\n");
     }
 
     if (flash_fsm_in_qmap_cnt == 0) {
@@ -2572,11 +2660,11 @@ mlag_mac_sync_master_logic_is_flush_busy(
                                              NULL, key, 0, &fsm);
     if (err == 0) {
         err = mlag_mac_sync_flush_is_busy(fsm, &flush_busy);
-        MLAG_BAIL_ERROR_MSG(err, "Failed in getting flush_busy  status for fsm of system flush type , err %d \n",
-               			                                      	            err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in getting flush_busy  status for fsm of system flush type , err %d \n",
+                            err);
 
         if (flush_busy) {
-            /*MLAG_LOG(MLAG_LOG_NOTICE, "master: learn not allowed due to flush all\n");*/
             mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_DURING_FLUSH_EVENT);
             goto bail;
         }
@@ -2585,8 +2673,9 @@ mlag_mac_sync_master_logic_is_flush_busy(
         err = 0;
     }
     else {
-    	 MLAG_BAIL_ERROR_MSG(err, "Failed in get pointer to system flush  sm upon checking flush busy, err %d \n",
-    	               			                             err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in get pointer to system flush  sm upon checking flush busy, err %d \n",
+                            err);
     }
     /* is flush per vid is performed */
 
@@ -2596,11 +2685,11 @@ mlag_mac_sync_master_logic_is_flush_busy(
                                              NULL, key, 0, &fsm);
     if (err == 0) {
         err = mlag_mac_sync_flush_is_busy(fsm, &flush_busy);
-        MLAG_BAIL_ERROR_MSG(err, "Failed in getting flush_busy  status for fsm of vid flush type , err %d \n",
-                       			                                      	            err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in getting flush_busy  status for fsm of vid flush type , err %d \n",
+                            err);
         if (flush_busy) {
             mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_DURING_FLUSH_EVENT);
-            /*MLAG_LOG(MLAG_LOG_NOTICE, "master: learn not allowed due to flush on vid [%u]\n",mac_params->vid);*/
             goto bail;
         }
     }
@@ -2608,8 +2697,9 @@ mlag_mac_sync_master_logic_is_flush_busy(
         err = 0;
     }
     else {
-    	MLAG_BAIL_ERROR_MSG(err, "Failed in get pointer to vid flush sm upon checking flush busy, err %d \n",
-    	    	               			                             err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in get pointer to vid flush sm upon checking flush busy, err %d \n",
+                            err);
     }
 
     /* is flush per port is performed */
@@ -2620,10 +2710,10 @@ mlag_mac_sync_master_logic_is_flush_busy(
                                              NULL, key, 0, &fsm);
     if (err == 0) {
         err = mlag_mac_sync_flush_is_busy(fsm, &flush_busy);
-        MLAG_BAIL_ERROR_MSG(err, "Failed in getting flush_busy  status for fsm of port flush type , err %d \n",
-                              			                                      	            err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in getting flush_busy  status for fsm of port flush type , err %d \n",
+                            err);
         if (flush_busy) {
-            /*MLAG_LOG(MLAG_LOG_NOTICE, "master: learn not allowed due to flush on log_port [%lu]\n",mac_params->log_port);*/
             mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_DURING_FLUSH_EVENT);
             goto bail;
         }
@@ -2632,26 +2722,28 @@ mlag_mac_sync_master_logic_is_flush_busy(
         err = 0;
     }
     else {
-     	MLAG_BAIL_ERROR_MSG(err, "Failed in get pointer to port flush sm upon checking flush busy, err %d \n",
-     			err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in get pointer to port flush sm upon checking flush busy, err %d \n",
+                            err);
     }
 
     /* is flush per port+vid is performed */
     key = (mac_params->vid & 0xFFFF);
     key =
         (key <<
-        KEY_PORT_SHIFT) |
+         KEY_PORT_SHIFT) |
         ((mac_params->log_port &
           0xFFFFFFFF)) | (non_mlag_key << NON_MLAG_PART_SHIFT);
 
-    err = mlag_mac_sync_master_logic_get_fsm(&vlan_ports_system_flush_fsm_map, NULL,
+    err = mlag_mac_sync_master_logic_get_fsm(&vlan_ports_system_flush_fsm_map,
+                                             NULL,
                                              key, 0, &fsm);
     if (err == 0) {
         err = mlag_mac_sync_flush_is_busy(fsm, &flush_busy);
-        MLAG_BAIL_ERROR_MSG(err, "Failed in getting flush_busy  status for fsm of port+vid flush type , err %d \n",
-                                     			                                      	            err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in getting flush_busy  status for fsm of port+vid flush type , err %d \n",
+                            err);
         if (flush_busy) {
-            /*MLAG_LOG(MLAG_LOG_NOTICE, "master: learn not allowed due to flush on log_port [%lu] - vid [%u]\n",mac_params->log_port,mac_params->vid);*/
             mlag_mac_sync_inc_cnt(MAC_SYNC_LOCAL_LEARNED_DURING_FLUSH_EVENT);
             goto bail;
         }
@@ -2660,8 +2752,9 @@ mlag_mac_sync_master_logic_is_flush_busy(
         err = 0;
     }
     else {
-    	MLAG_BAIL_ERROR_MSG(err, "Failed in get pointer to port+vid flush sm upon checking flush busy, err %d \n",
-    	     			err);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in get pointer to port+vid flush sm upon checking flush busy, err %d \n",
+                            err);
     }
 
 bail:
@@ -2707,13 +2800,15 @@ mlag_mac_sync_master_logic_get_available_flush_fsm(
         key = (key_filter->vid & 0xFFFF);
         key =
             (key <<
-            KEY_PORT_SHIFT) |
+             KEY_PORT_SHIFT) |
             ((key_filter->log_port &
               0xFFFFFFFF)) | (non_mlag_key << NON_MLAG_PART_SHIFT);
         /* lookup in vlan port system map pool */
-        err = mlag_mac_sync_master_logic_get_fsm(&vlan_ports_system_flush_fsm_map,
-                                                 &vlan_port_flush_fsm_pool, key,
-                                                 allocate, fsm);
+        err = mlag_mac_sync_master_logic_get_fsm(
+            &vlan_ports_system_flush_fsm_map,
+            &vlan_port_flush_fsm_pool,
+            key,
+            allocate, fsm);
         if (err != 0) {
             MLAG_LOG(MLAG_LOG_ERROR,
                      "master: no available fsm resource log_port [%lu] - vid [%u] %d\n", key_filter->log_port,
@@ -2760,14 +2855,16 @@ mlag_mac_sync_master_logic_get_available_flush_fsm(
             key, allocate, fsm);
         if (err != 0) {
             MLAG_LOG(MLAG_LOG_ERROR,
-                     "master: no available fsm resource system flush %d\n", err);
+                     "master: no available fsm resource system flush %d\n",
+                     err);
             goto bail;
         }
     }
 
 bail:
-    MLAG_LOG(MLAG_LOG_INFO, "search by key alloc(%d) : %" PRIx64 ", %" PRIx64 " , err %d\n",
-    		allocate, key, non_mlag_key, err);
+    MLAG_LOG(MLAG_LOG_INFO,
+             "search by key alloc(%d) : %" PRIx64 ", %" PRIx64 " , err %d\n",
+             allocate, key, non_mlag_key, err);
     return err;
 }
 

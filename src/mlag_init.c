@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #define MLAG_INIT_C_
 
@@ -52,6 +52,7 @@
 #include <libs/service_layer/service_layer.h>
 #include <libs/mlag_mac_sync/mlag_mac_sync_manager.h>
 #include <libs/mlag_tunneling/mlag_tunneling.h>
+#include <libs/lacp_manager/lacp_manager.h>
 #include "mlag_init.h"
 #include "mlag_internal_api.h"
 #include "mlag_main.h"
@@ -289,6 +290,7 @@ mlag_start(const unsigned long long system_id,
            const struct mlag_start_params *params)
 {
     int err = 0;
+    struct start_event_data start_data;
 
     BAIL_MLAG_NOT_INIT();
 
@@ -301,7 +303,10 @@ mlag_start(const unsigned long long system_id,
         sl_start_state = TRUE;
     }
 
-    err = send_system_event(MLAG_START_EVENT, (void *)params, sizeof(*params));
+    start_data.start_params = *params;
+
+    err = send_system_event(MLAG_START_EVENT, (void *)&start_data,
+                            sizeof(struct start_event_data));
     MLAG_BAIL_ERROR(err);
 
 bail:
@@ -370,6 +375,7 @@ mlag_log_verbosity_set(enum mlag_log_module module,
         mlag_dispatcher_log_verbosity_set(verbosity);
         mlag_mac_sync_dispatcher_log_verbosity_set(verbosity);
         mlag_comm_layer_wrapper_log_verbosity_set(verbosity);
+        lacp_manager_log_verbosity_set(verbosity);
         break;
     case MLAG_LOG_MODULE_PORT_MANAGER:
         port_manager_log_verbosity_set(verbosity);
@@ -394,6 +400,9 @@ mlag_log_verbosity_set(enum mlag_log_module module,
         break;
     case MLAG_LOG_MODULE_MAC_SYNC_DISPATCHER:
         mlag_mac_sync_dispatcher_log_verbosity_set(verbosity);
+        break;
+    case MLAG_LOG_MODULE_LACP_MANAGER:
+        lacp_manager_log_verbosity_set(verbosity);
         break;
     default:
         /* Unknown module */
@@ -449,6 +458,9 @@ mlag_log_verbosity_get(const enum mlag_log_module module,
         break;
     case MLAG_LOG_MODULE_MAC_SYNC_DISPATCHER:
         *verbosity = mlag_mac_sync_dispatcher_log_verbosity_get();
+        break;
+    case MLAG_LOG_MODULE_LACP_MANAGER:
+        *verbosity = lacp_manager_log_verbosity_get();
         break;
     default:
         /* Unknown module */

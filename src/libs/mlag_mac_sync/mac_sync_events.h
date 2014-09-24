@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #ifndef MAC_SYNC_EVENTS_H_
 #define MAC_SYNC_EVENTS_H_
 
@@ -51,26 +51,24 @@ typedef  struct fdb_uc_key_filter fdb_uc_key_filter_t;
 #pragma pack(push,1)
 
 
-struct mac_sync_mac_params{
-	 unsigned short   vid;
-	 struct ether_addr mac_addr;
+struct mac_sync_mac_params {
+    unsigned short vid;
+    struct ether_addr mac_addr;
 };
 
 /*  mac_sync specific events*/
 
-struct mac_sync_uc_mac_addr_params
-{
-   unsigned short              vid;
-   struct ether_addr           mac_addr;
-   unsigned long               log_port;
-   enum fdb_uc_mac_entry_type  entry_type;
- };
+struct mac_sync_uc_mac_addr_params {
+    unsigned short vid;
+    struct ether_addr mac_addr;
+    unsigned long log_port;
+    enum fdb_uc_mac_entry_type entry_type;
+};
 
 struct mac_sync_learn_event_data {
-
-	struct mac_sync_uc_mac_addr_params mac_params;
-    uint32_t   port_cookie;
-    uint8_t    originator_peer_id;
+    struct mac_sync_uc_mac_addr_params mac_params;
+    uint32_t port_cookie;
+    uint8_t originator_peer_id;
 };
 
 struct mac_sync_age_event_data {
@@ -90,7 +88,7 @@ struct mac_sync_multiple_age_buffer {
 struct mac_sync_multiple_age_event_data {
     uint16_t opcode;
     uint16_t num_msg;
-   /* struct mac_sync_age_event_data msg;*/
+    /* struct mac_sync_age_event_data msg;*/
 };
 
 /* fix length age message  */
@@ -140,30 +138,28 @@ struct mac_sync_master_fdb_export_event_data {
 
 struct mac_sync_flush_generic_data {
     fdb_uc_key_filter_t filter;
-    uint8_t             peer_originator;
-	uint8_t             non_mlag_port_flush;
+    uint8_t peer_originator;
+    uint8_t non_mlag_port_flush;
 };
 
 struct mac_sync_flush_master_sends_start_event_data {
-    uint16_t                           opcode;
+    uint16_t opcode;
     struct mac_sync_flush_generic_data gen_data;
-	uint32_t                           number_mac_params;
-	struct mac_sync_mac_params         mac_params;
-
+    uint32_t number_mac_params;
+    struct mac_sync_mac_params mac_params;
 };
 
 struct mac_sync_flush_peer_sends_start_event_data {
-    uint16_t                           opcode;
+    uint16_t opcode;
     struct mac_sync_flush_generic_data gen_data;
-    uint32_t                           number_mac_params;
-    struct mac_sync_mac_params         mac_params;
-
+    uint32_t number_mac_params;
+    struct mac_sync_mac_params mac_params;
 };
 
 struct mac_sync_flush_peer_ack_event_data {
-    uint16_t                           opcode;
+    uint16_t opcode;
     struct mac_sync_flush_generic_data gen_data;
-    uint8_t                            peer_id;
+    uint8_t peer_id;
 };
 
 struct mac_sync_flush_completed_event_data {

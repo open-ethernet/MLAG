@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #include <errno.h>
 #include <unistd.h>
 #include <complib/cl_init.h>
@@ -218,7 +218,7 @@ rcv_msg_handler(uint8_t *data)
 
     opcode = *((uint16_t*)(payload_data->payload[0]));
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "port manager rcv_msg_handler: opcode=%d\n", opcode);
 
     mm_counters_inc(MM_CNT_PROTOCOL_RX);
@@ -227,7 +227,7 @@ rcv_msg_handler(uint8_t *data)
     case MLAG_PEER_START_EVENT:
         state_change =
             (struct peer_state_change_data *) (payload_data->payload[0]);
-        MLAG_LOG(MLAG_LOG_DEBUG, "Peer start ID [%d]\n",
+        MLAG_LOG(MLAG_LOG_NOTICE, "Peer start ID [%d]\n",
                  state_change->mlag_id);
         err = send_system_event(MLAG_PEER_START_EVENT, state_change,
                                 sizeof(struct peer_state_change_data));
@@ -236,7 +236,7 @@ rcv_msg_handler(uint8_t *data)
     case MLAG_PEER_ENABLE_EVENT:
         state_change =
             (struct peer_state_change_data *) (payload_data->payload[0]);
-        MLAG_LOG(MLAG_LOG_DEBUG, "Peer enable ID [%d]\n",
+        MLAG_LOG(MLAG_LOG_NOTICE, "Peer enable ID [%d]\n",
                  state_change->mlag_id);
         /* mark that ports were enabled on this machine */
         slave_ports_enabled = TRUE;
@@ -299,9 +299,6 @@ net_order_msg_handler(uint8_t *data, int oper)
         opcode = ntohs(*(uint16_t*)data);
         *(uint16_t*)data = opcode;
     }
-
-    MLAG_LOG(MLAG_LOG_NOTICE,
-             "mlag manager rcv_msg_handler: opcode=%u\n", opcode);
 
     switch (opcode) {
     case MLAG_PEER_START_EVENT:
@@ -377,9 +374,7 @@ reload_delay_expired_cb(void *data)
     int err = 0;
     UNUSED_PARAM(data);
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "***************************\n");
-    MLAG_LOG(MLAG_LOG_NOTICE, "Reload delay expired\n");
-    MLAG_LOG(MLAG_LOG_NOTICE, "***************************\n");
+    MLAG_LOG(MLAG_LOG_NOTICE, "*** Reload delay expired ***\n");
 
     err = send_system_event(MLAG_PEER_RELOAD_DELAY_EXPIRED, NULL, 0);
     if (err) {
@@ -405,7 +400,7 @@ peer_sync_start_cb(int peer_id)
 
     peer_start.mlag_id = peer_id;
     /* send message - peer start */
-    MLAG_LOG(MLAG_LOG_NOTICE, "Send peer start, mlag ID [%d]", peer_id);
+    MLAG_LOG(MLAG_LOG_NOTICE, "Send peer start, mlag ID [%d]\n", peer_id);
     err = mlag_manager_message_send(MLAG_PEER_START_EVENT, &peer_start,
                                     sizeof(peer_start), peer_id, MASTER_LOGIC);
     MLAG_BAIL_ERROR_MSG(err, "Failed in sending peer [%d] start event\n",
@@ -431,7 +426,8 @@ peer_sync_done_cb(int peer_id)
     struct mlag_master_election_status me_status;
 
     err = mlag_master_election_get_status(&me_status);
-    MLAG_BAIL_ERROR_MSG(err, "Failed to get Master election status in handling of peer sync done event\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed to get Master election status in handling of peer sync done event\n");
 
     /* stop reload delay timer if peer is not local */
     if (peer_id != mlag_manager_db_local_peer_id_get()) {
@@ -563,9 +559,16 @@ int
 mlag_manager_start(uint8_t *data)
 {
     int err = 0;
+    int i;
     UNUSED_PARAM(data);
 
     start_event = TRUE;
+    struct start_event_data *params = (struct start_event_data *)data;
+
+    for (i = 0; i < MLAG_MAX_PEERS; i++) {
+        peering_fsm[i].igmp_enabled = params->start_params.igmp_enable;
+        peering_fsm[i].lacp_enabled = params->start_params.lacp_enable;
+    }
 
     return err;
 }
@@ -1072,19 +1075,22 @@ mlag_manager_protocol_oper_state_get(
         if (reload_delay_done) {
             if (current_role == MLAG_MASTER) {
                 *protocol_oper_state = MLAG_UP;
-            } else if (current_role == MLAG_SLAVE) {
-                err = mlag_manager_peers_state_list_get(peers_list, &peers_list_cnt);
+            }
+            else if (current_role == MLAG_SLAVE) {
+                err = mlag_manager_peers_state_list_get(peers_list,
+                                                        &peers_list_cnt);
                 MLAG_BAIL_ERROR_MSG(err, "Failed in getting peers state\n");
 
                 *protocol_oper_state = MLAG_UP;
 
-                for(i = 0; i < peers_list_cnt; i++) {
+                for (i = 0; i < peers_list_cnt; i++) {
                     if (peers_list[i].peer_state == MLAG_PEER_DOWN) {
                         *protocol_oper_state = MLAG_DOWN;
                         break;
                     }
                 }
-            } else {
+            }
+            else {
                 /* standalone and none are configured with DOWN state */
                 *protocol_oper_state = MLAG_DOWN;
             }
@@ -1201,8 +1207,13 @@ mlag_manager_peers_state_list_get(struct peer_state *peers_list,
                 }
             }
             else {
-                /* master is in state up when I am slave */
-                peers_list[peer_id].peer_state = MLAG_PEER_UP;
+                /* return master state according to health state */
+                if (peer_states[peer_id] == HEALTH_PEER_UP) {
+                    peers_list[peer_id].peer_state = MLAG_PEER_UP;
+                }
+                else {
+                    peers_list[peer_id].peer_state = MLAG_PEER_DOWN;
+                }
             }
 
             peers_list[peer_id].system_peer_id =
@@ -1278,18 +1289,18 @@ mlag_manager_wait_for_stop_done(void)
              "Waiting for stop done event\n");
 
     cl_err = cl_event_wait_on(&stop_done_cl_event,
-    		MLAG_MANAGER_STOP_TIMEOUT, 1);
+                              MLAG_MANAGER_STOP_TIMEOUT, 1);
     if (cl_err == CL_TIMEOUT) {
-         err = cl_err;
-         MLAG_LOG(MLAG_LOG_WARNING,
-         		 "Timeout in waiting for stop done event\n");
-         goto bail;
+        err = cl_err;
+        MLAG_LOG(MLAG_LOG_WARNING,
+                 "Timeout in waiting for stop done event\n");
+        goto bail;
     }
     if (cl_err == CL_ERROR) {
         err = cl_err;
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in wait for stop_done cl_event, err=%d\n",
-        		err);
+                            "Failed in wait for stop_done cl_event, err=%d\n",
+                            err);
     }
 
 bail:
@@ -1322,8 +1333,8 @@ mlag_manager_stop_done_handle(uint8_t *event)
         if (cl_err == CL_ERROR) {
             err = cl_err;
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed to signal stop_done cl_event, err=%d\n",
-            		err);
+                                "Failed to signal stop_done cl_event, err=%d\n",
+                                err);
         }
     }
 
@@ -1346,18 +1357,18 @@ mlag_manager_wait_for_port_delete_done(void)
              "Waiting for port delete done event\n");
 
     cl_err = cl_event_wait_on(&port_delete_done_cl_event,
-    		MLAG_MANAGER_PORT_DELETE_DONE_TIMEOUT, 1);
+                              MLAG_MANAGER_PORT_DELETE_DONE_TIMEOUT, 1);
     if (cl_err == CL_TIMEOUT) {
         err = cl_err;
         MLAG_LOG(MLAG_LOG_WARNING,
-        		 "Timeout in waiting on port delete done event\n");
+                 "Timeout in waiting on port delete done event\n");
         goto bail;
     }
     if (cl_err == CL_ERROR) {
         err = cl_err;
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in waiting for port delete done event, err=%d\n",
-        		err);
+                            "Failed in waiting for port delete done event, err=%d\n",
+                            err);
     }
 
 bail:
@@ -1382,8 +1393,8 @@ mlag_manager_port_delete_done(void)
     if (cl_err == CL_ERROR) {
         err = cl_err;
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to signal port delete_done cl_event, err=%d\n",
-        		err);
+                            "Failed to signal port delete_done cl_event, err=%d\n",
+                            err);
     }
 
 bail:

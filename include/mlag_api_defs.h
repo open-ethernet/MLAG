@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 
 #ifndef MLAG_API_DEFS_H_
@@ -86,11 +86,6 @@ enum mgmt_oper_state {
     MGMT_DOWN,
 };
 
-enum ipl_ip_machine {
-    LOCAL = 0,
-    PEER,
-};
-
 enum access_cmd {
     ACCESS_CMD_ADD = 0,
     ACCESS_CMD_DELETE,
@@ -103,7 +98,7 @@ enum access_cmd {
 };
 
 /**
- * Mlag protocol counters structure.
+ * MLAG protocol counters structure.
  */
 struct mlag_counters {
     unsigned long long rx_heartbeat;
@@ -118,10 +113,12 @@ struct mlag_counters {
     unsigned long long tx_port_notification;
     unsigned long long rx_fdb_sync;
     unsigned long long tx_fdb_sync;
+    unsigned long long rx_lacp_manager;
+    unsigned long long tx_lacp_manager;
 };
 
 /**
- * Mlag port operational state.
+ * MLAG port operational state.
  */
 enum mlag_port_oper_state {
     INACTIVE = 0,
@@ -131,7 +128,7 @@ enum mlag_port_oper_state {
 };
 
 /**
- * Mlag protocol operational state.
+ * MLAG protocol operational state.
  */
 enum protocol_oper_state {
     MLAG_INIT = 0,
@@ -139,9 +136,9 @@ enum protocol_oper_state {
     MLAG_DOWN,
     MLAG_UP,
 };
-
+#pragma pack(push,1)
 /**
- * Mlag port operational state information.
+ * MLAG port operational state information.
  */
 struct mlag_port_info {
     enum mlag_port_oper_state port_oper_state;
@@ -149,16 +146,16 @@ struct mlag_port_info {
 };
 
 /**
- * Mlag features.
+ * MLAG features.
  */
 struct mlag_start_params {
     unsigned char stp_enable;
     unsigned char lacp_enable;
     unsigned char igmp_enable;
 };
-
+#pragma pack(pop)
 /**
- * Enumerated type that represent the module his log verbosity is going to change.
+ * Enumerated type that represents the module this log verbosity is going to change.
  */
 enum mlag_log_module {
     MLAG_LOG_MODULE_API = 0,                            /* change only API verbosity level */
@@ -171,14 +168,15 @@ enum mlag_log_module {
     MLAG_LOG_MODULE_MLAG_MANAGER,                       /* change only Mlag Manager verbosity level */
     MLAG_LOG_MODULE_MLAG_DISPATCHER,                    /* change only Mlag Dispatcher verbosity level */
     MLAG_LOG_MODULE_MAC_SYNC_DISPATCHER,                /* change only MAC Sync Dispatcher verbosity level */
+    MLAG_LOG_MODULE_LACP_MANAGER,                       /* change only LACP manager verbosity level */
     MLAG_LOG_ALL,                                       /* change both Modules & API verbosity level */
 
-    MLAG_LOG_VERBOSITY_MIN = MLAG_LOG_MODULE_API,       /* Minimum value of verbosity target */
-    MLAG_LOG_VERBOSITY_MAX = MLAG_LOG_ALL               /* Maximum value of verbosity target */
+    MLAG_LOG_MODULE_MIN = MLAG_LOG_MODULE_API,       /* Minimum value of verbosity target */
+    MLAG_LOG_MODULE_MAX = MLAG_LOG_ALL               /* Maximum value of verbosity target */
 };
 
 /**
- * Enumerated type that represent the type of the connector.
+ * Enumerated type that represents the type of the connector.
  */
 enum mlag_connector_type {
     MLAG_LOCAL_CONNECTOR = 0,
@@ -186,7 +184,7 @@ enum mlag_connector_type {
 };
 
 /**
- * Enumerated type that represent the system role.
+ * Enumerated type that represents the system role.
  */
 enum system_role_state {
     MLAG_MASTER = 0,
@@ -197,7 +195,7 @@ enum system_role_state {
 };
 
 /**
- * Enumerated type that represent the peer current state.
+ * Enumerated type that represents the peer current state.
  */
 enum mlag_peer_state {
     MLAG_PEER_DOWN = 0,
@@ -206,7 +204,7 @@ enum mlag_peer_state {
 };
 
 /**
- * Mlag peer state information.
+ * MLAG peer state information.
  */
 struct peer_state {
     enum mlag_peer_state peer_state;
@@ -214,12 +212,22 @@ struct peer_state {
 };
 
 /**
- * Mlag router mac information.
+ * MLAG router MAC information.
  */
 struct router_mac {
     unsigned long long mac;
     unsigned short vlan_id;
 };
+
+/**
+ * Enumerated type that represents port aggregation mode
+ */
+enum mlag_port_mode {
+    MLAG_PORT_MODE_STATIC = 0,
+    MLAG_PORT_MODE_LACP,
+    MLAG_PORT_MODE_LAST
+};
+
 
 /************************************************
  *  Global variables

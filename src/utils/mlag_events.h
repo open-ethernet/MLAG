@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #ifndef MLAG_EVENTS_H_
 #define MLAG_EVENTS_H_
 
@@ -106,6 +106,14 @@ enum mlag_events {
     MLAG_ROUTER_MAC_CFG_EVENT,
     MLAG_RECONNECT_EVENT,
     MLAG_PORT_DELETED_EVENT,
+    MLAG_PORT_MODE_SET_EVENT,
+
+    MLAG_LACP_SYNC_MSG,
+    MLAG_LACP_SYS_ID_SET,
+    MLAG_LACP_SELECTION_REQUEST,
+    MLAG_LACP_SELECTION_EVENT,
+    MLAG_LACP_RELEASE_EVENT,
+    MLAG_LACP_SYS_ID_UPDATE_EVENT,
 
     MLAG_EVENTS_NUM
 };
@@ -184,16 +192,16 @@ struct port_conf_event_data {
 
 
 struct router_mac_cfg_data {
-   uint16_t opcode;
-   int del_command;
-   int router_macs_list_cnt;
-   struct router_mac mac_router_list[MAX_ROUTER_MACS];
+    uint16_t opcode;
+    int del_command;
+    int router_macs_list_cnt;
+    struct router_mac mac_router_list[MAX_ROUTER_MACS];
 };
 
 struct mpo_port_deleted_event_data {
     uint16_t opcode;
     unsigned long port;
-    int      status;   /* 1  - OK  0  - fault */
+    int status;        /* 1  - OK  0  - fault */
 };
 
 struct reload_delay_change_data {
@@ -204,6 +212,12 @@ struct reload_delay_change_data {
 struct ka_interval_change_data {
     uint16_t opcode;
     unsigned int msec;
+};
+
+struct port_mode_set_event_data {
+    uint16_t opcode;
+    unsigned long port_id;
+    unsigned long port_mode;
 };
 
 struct switch_status_change_event_data {
@@ -232,7 +246,7 @@ struct vlan_state_change_event_data {
     uint16_t opcode;
     int peer_id;
     int vlans_arr_cnt;
-    struct vlan_state_info vlan_data[MLAG_VLAN_ID_MAX+1];
+    struct vlan_state_info vlan_data[MLAG_VLAN_ID_MAX + 1];
 };
 
 struct sync_event_data {
@@ -245,6 +259,26 @@ struct sync_event_data {
 struct timer_event_data {
     uint16_t opcode;
     void *data;
+};
+
+struct start_event_data {
+    uint16_t opcode;
+    struct mlag_start_params start_params;
+};
+
+struct lacp_sys_id_set_data {
+    uint16_t opcode;
+    unsigned long long sys_id;
+};
+
+struct lacp_selection_request_event_data {
+    uint16_t opcode;
+    int unselect;
+    unsigned long request_id;
+    unsigned long port_id;
+    unsigned long long partner_sys_id;
+    unsigned int partner_key;
+    unsigned char force;
 };
 
 #pragma pack(pop)

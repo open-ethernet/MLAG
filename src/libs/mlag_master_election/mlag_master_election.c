@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_mem.h>
@@ -119,8 +119,8 @@ mlag_master_election_init(void)
     cl_status_t cl_err;
 
     if (is_initialized) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "master election init called twice\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "master election init called twice\n");
     }
 
     is_started = 0;
@@ -140,7 +140,8 @@ mlag_master_election_init(void)
     cl_err = cl_plock_init(&mlag_master_election_mutex);
     if (cl_err != CL_SUCCESS) {
         err = EIO;
-    	MLAG_BAIL_ERROR_MSG(err, "Failed to create mutex for master election fsm\n");
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to create mutex for master election fsm\n");
     }
 
     /* Init FSM and concrete attributes */
@@ -174,8 +175,9 @@ mlag_master_election_deinit(void)
     cl_status_t cl_err;
 
     if (!is_initialized) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "master election deinit called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "master election deinit called before init\n");
     }
 
     is_started = 0;
@@ -208,7 +210,8 @@ mlag_master_election_fsm_trace(char* buf, int len)
         MLAG_LOG(MLAG_LOG_INFO, "FSM: %s", buf);
     }
     else {
-        MLAG_LOG(MLAG_LOG_ERROR, "fsm trace called with NULL buffer pointer\n");
+        MLAG_LOG(MLAG_LOG_ERROR,
+                 "fsm trace called with NULL buffer pointer\n");
     }
 }
 
@@ -226,8 +229,8 @@ mlag_master_election_start(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_initialized) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "master election start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "master election start called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "master election start\n");
@@ -302,8 +305,8 @@ mlag_master_election_config_change(struct config_change_event *ev)
     ASSERT(ev);
 
     if (!is_initialized) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "Config change called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "Config change called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE,
@@ -422,8 +425,8 @@ mlag_master_election_get_status(
     int err = 0;
 
     if (!is_initialized) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "Get status called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "Get status called before init\n");
     }
 
     cl_plock_excl_acquire(&mlag_master_election_mutex);
@@ -460,13 +463,13 @@ mlag_master_election_dump(void (*dump_cb)(const char *, ...))
     int err = 0;
 
     if (dump_cb == NULL) {
-    	MLAG_LOG(MLAG_LOG_NOTICE,
-    			"=================\nMaster election dump\n=================\n");
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "=================\nMaster election dump\n=================\n");
         MLAG_LOG(MLAG_LOG_NOTICE, "is_initialized=%d, is_started=%d\n",
                  is_initialized, is_started);
     }
     else {
-    	dump_cb("=================\nMaster election dump\n=================\n");
+        dump_cb("=================\nMaster election dump\n=================\n");
         dump_cb("is_initialized=%d, is_started=%d\n",
                 is_initialized, is_started);
     }

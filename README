@@ -52,36 +52,47 @@ MLAG API:
     IN: command [example: ACCESS_CMD_ADD]
     IN: port_id [example: 5]
 
-4.  mlag_api_ipl_set 
+4. mlag_api_port_mode_set
+    - Set mlag port aggregation mode (LACP or static).
+      This API should be called per each port.
+    IN: port_id [example: 5]
+    IN: port_mode [example : MLAG_PORT_MODE_LACP]
+
+5.  mlag_api_ipl_set 
     - Create an IPL.
     IN: command [example: ACCESS_CMD_CREATE]
     OUT: ipl_id [example: the api will assign ipl_id with value 1]
 
-5.  mlag_api_ipl_port_set 
+6.  mlag_api_ipl_port_set 
     - Bind port to an IPL.
     IN: command [example: ACCESS_CMD_ADD]
     IN: ipl_id [example: 1, The ipl_id given in previous API call]
     IN: port_id [example: 7] 
 
-6.  mlag_api_ipl_ip_set 
-    - Set the local and peer IP addresses for an IPL. The IP is referring to the IPL interface vlan.
+7.  mlag_api_ipl_ip_set 
+    - Set the local and peer IP addresses for an IPL. i
+      The IP is referring to the IPL interface vlan.
     IN: command [example: ACCESS_CMD_ADD]
     IN: ipl_id [example: 1]
     IN vlan_id [example: 4]
     IN: local_ipl_ip_addr [example: 4.4.4.1]
     IN: peer_ipl_ip_addr [example: 4.4.4.2]
 
-7.  mlag_api_start 
+8. mlag_api_lacp_local_sys_id_set 
+    - Set the local LACP system ID, relevant when LACP protocol is enabled.
+    IN: local_system_id [example: machine MAC and LACP priority] 
+
+9.  mlag_api_start 
     - Enable the mlag protocol.
     IN: system_id [example: machine MAC]
     IN: struct mlag_params [example: mlag_params.stp_enable = 0, mlag_params.lacp_enable = 0, mlag_params.igmp_enable = 1]
 
-8.  mlag_api_ports_state_change_notify 
+10.  mlag_api_ports_state_change_notify 
     - Notify on ports operational state changes.
     IN: struct port_state pointer, ports_arr [example: mlag_ports[0].port_id = 1, mlag_ports[0].port_state = OES_PORT_UP]
     IN: ports_arr_cnt [example: 1]
     
-9.  mlag_api_vlans_state_change_notify 
+11.  mlag_api_vlans_state_change_notify 
     - Notify on vlans state changes. Invoke on all vlans.
       Vlan is considered as up if one member port is up, excluding IPL.
       Vlan considered as down if all the member ports of the vlan down, excluding IPL.
@@ -89,12 +100,12 @@ MLAG API:
     IN: struct vlan_state_info pointer, vlans_arr [example: vlans_arr[0].vlan_id = 1, vlans_arr[0].vlan_state = VLAN_UP …]
     IN: vlans_arr_cnt [example: number of the vlans]
 
-10. mlag_api_mgmt_peer_state_notify 
+12. mlag_api_mgmt_peer_state_notify 
     - Notify on peer management connectivity state changes.
     IN: peer_system_id [example: peer MAC]
     IN: mgmt_state [example: MGMT_UP]
 
-11. mlag_api_vlans_state_change_sync_finish_notify 
+13. mlag_api_vlans_state_change_sync_finish_notify 
     - Notify on vlans state change sync done.
 
 

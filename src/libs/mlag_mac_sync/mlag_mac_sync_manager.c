@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #define MLAG_MAC_SYNC_MANAGER_C
 
 #include <errno.h>
@@ -41,6 +41,8 @@
 #include "mlag_mac_sync_manager.h"
 #include "mlag_mac_sync_peer_manager.h"
 #include "mlag_mac_sync_master_logic.h"
+#include "mlag_mac_sync_flush_fsm.h"
+#include "mlag_mac_sync_router_mac_db.h"
 #include "mlag_master_election.h"
 #include "lib_commu.h"
 #include "mlag_comm_layer_wrapper.h"
@@ -134,6 +136,8 @@ mlag_mac_sync_log_verbosity_set(mlag_verbosity_t verbosity)
     LOG_VAR_NAME(__MODULE__) = verbosity;
     mlag_mac_sync_peer_mngr_log_verbosity_set(verbosity);
     mlag_mac_sync_master_logic_log_verbosity_set(verbosity);
+    mlag_mac_sync_flush_fsm_log_verbosity_set(verbosity);
+    mlag_mac_sync_router_mac_db_log_verbosity_set(verbosity);
 }
 
 /**
@@ -158,8 +162,8 @@ mlag_mac_sync_init(insert_to_command_db_func insert_msgs)
     int err = 0;
 
     if (is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync init called twice\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "mac sync init called twice\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "mac_sync init\n" );
@@ -195,8 +199,8 @@ mlag_mac_sync_deinit(void)
     int err = 0;
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync deinit called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "mac sync deinit called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "mac sync_deinit\n");
@@ -222,8 +226,8 @@ mlag_mac_sync_start(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "mac sync start called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "mac_sync start\n" );
@@ -265,7 +269,6 @@ mlag_mac_sync_stop(uint8_t *data)
     }
 
     is_started = 0;
-    current_switch_status = DEFAULT_SWITCH_STATUS;
 
     mlag_mac_sync_peer_mngr_stop(NULL);
 
@@ -273,6 +276,7 @@ mlag_mac_sync_stop(uint8_t *data)
         err = mlag_mac_sync_master_logic_stop(NULL);
         MLAG_BAIL_ERROR(err);
     }
+    current_switch_status = DEFAULT_SWITCH_STATUS;
 
 bail:
     return err;
@@ -340,7 +344,6 @@ mlag_mac_sync_done_to_peer( struct sync_event_data * data)
 int
 mlag_mac_sync_local_learn(void *data)
 {
-    /*MLAG_LOG(MLAG_LOG_NOTICE, "Local learn in Master IBC flow :\n");*/
     return mlag_mac_sync_master_logic_local_learn((void *)data);
 }
 
@@ -354,8 +357,8 @@ mlag_mac_sync_local_learn(void *data)
 int
 mlag_mac_sync_global_learn(void *data)
 {
-    /*MLAG_LOG(MLAG_LOG_NOTICE, "Global learn in Peer manager IBC flow :\n");*/
     int err = 0;
+
     err = mlag_mac_sync_peer_mngr_global_learned(data, 1);
     if (err == -EXFULL) {
         err = 0;
@@ -376,7 +379,6 @@ bail:
 int
 mlag_mac_sync_local_age(void *data)
 {
-    /* MLAG_LOG(MLAG_LOG_NOTICE, "Local age in Master IBC flow :\n");*/
     return mlag_mac_sync_master_logic_local_aged((void *)data);
 }
 
@@ -390,7 +392,6 @@ mlag_mac_sync_local_age(void *data)
 int
 mlag_mac_sync_global_age(void *data)
 {
-    /*  MLAG_LOG(MLAG_LOG_NOTICE, "Global age in Peer Manager IBC flow :\n");*/
     return mlag_mac_sync_peer_mngr_global_aged((void *)data);
 }
 
@@ -570,7 +571,7 @@ net_order_msg_handler(uint8_t *data, int oper)
     default:
         /* Unknown opcode */
         MLAG_LOG(MLAG_LOG_NOTICE,
-        		 "Unknown event %d in network ordering handler\n",
+                 "Unknown event %d in network ordering handler\n",
                  opcode);
         break;
     }
@@ -593,7 +594,7 @@ mlag_mac_sync_peer_status_change(struct peer_state_change_data *data)
     ASSERT(data);
 
     if (!is_started) {
-        MLAG_LOG(MLAG_LOG_NOTICE,
+        MLAG_LOG(MLAG_LOG_INFO,
                  "mlag_mac_sync_peer_status_change event ignored before start: mlag_id=%d, state=%d\n",
                  data->mlag_id, data->state);
         goto bail;
@@ -604,10 +605,10 @@ mlag_mac_sync_peer_status_change(struct peer_state_change_data *data)
              data->mlag_id, health_state_str[data->state]);
 
     if (!((data->mlag_id >= 0) && (data->mlag_id < MLAG_MAX_PEERS))) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err,
-    			"Invalid parameters in peer status change event: mlag_id=%d\n",
-    			data->mlag_id);
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameters in peer status change event: mlag_id=%d\n",
+                            data->mlag_id);
     }
 
     MAC_SYNC_INC_CNT(MAC_SYNC_PEER_STATE_CHANGE_EVENTS_RCVD);
@@ -693,8 +694,8 @@ mlag_mac_sync_fdb_get_event(uint8_t *data)
     ASSERT(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "fdb get event accepted before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "fdb get event accepted before start\n");
     }
 
     MAC_SYNC_INC_CNT(MAC_SYNC_FDB_GET_EVENTS_RCVD);
@@ -723,8 +724,8 @@ mlag_mac_sync_fdb_export_event(uint8_t *data)
     ASSERT(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "fdb export event accepted before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "fdb export event accepted before start\n");
     }
 
     MAC_SYNC_INC_CNT(MAC_SYNC_FDB_EXPORT_EVENTS_RCVD);
@@ -788,14 +789,14 @@ mlag_mac_sync_switch_status_change(struct switch_status_change_event_data *data)
     MLAG_BAIL_ERROR(err);
 
     if (!is_started) {
-        MLAG_LOG(MLAG_LOG_NOTICE,
+        MLAG_LOG(MLAG_LOG_INFO,
                  "mlag_mac_sync_switch_status_change event accepted before start: msg_current_status=%s, msg_previous_status=%s, mac_sync_current_status=%s\n",
                  current_status_str, previous_status_str,
                  mac_sync_current_status_str);
         goto bail;
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mlag_mac_sync_switch_status_change event: msg_current_status=%s, msg_previous_status=%s, mac_sync_current_status=%s\n",
              current_status_str, previous_status_str,
              mac_sync_current_status_str);
@@ -852,19 +853,20 @@ mlag_mac_sync_dump(void (*dump_cb)(const char *, ...))
     int err = 0;
 
     if (dump_cb == NULL) {
-    	MLAG_LOG(MLAG_LOG_NOTICE, "=================\nMAC Sync dump\n=================\n");
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "=================\nMAC Sync dump\n=================\n");
         MLAG_LOG(MLAG_LOG_NOTICE, "is_inited=%d, is_started=%d\n",
                  is_inited, is_started);
     }
     else {
-    	dump_cb("=================\nMAC Sync dump\n=================\n");
+        dump_cb("=================\nMAC Sync dump\n=================\n");
         dump_cb("is_inited=%d, is_started=%d\n",
                 is_inited, is_started);
     }
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "mac sync dump called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "mac sync dump called before init\n");
     }
 
     mlag_mac_sync_print_counters(dump_cb);
@@ -903,23 +905,23 @@ mlag_mac_sync_counters_clear(void)
  * @return 0 - Operation completed successfully.
  * @return -EINVAL - If any input parameter is invalid.
  */
-int mlag_mac_sync_counters_get(struct mlag_counters *mlag_counters)
+int
+mlag_mac_sync_counters_get(struct mlag_counters *mlag_counters)
 {
+    if (current_switch_status == MASTER) {
+        mlag_counters->tx_fdb_sync = counters.counter[MASTER_TX];
+        mlag_counters->rx_fdb_sync = counters.counter[MASTER_RX];
+    }
+    else if (current_switch_status == SLAVE) {
+        mlag_counters->tx_fdb_sync = counters.counter[SLAVE_TX];
+        mlag_counters->rx_fdb_sync = counters.counter[SLAVE_RX];
+    }
+    else {
+        mlag_counters->tx_fdb_sync = 0;
+        mlag_counters->rx_fdb_sync = 0;
+    }
 
-	if(current_switch_status == MASTER){
-		mlag_counters->tx_fdb_sync = counters.counter[MASTER_TX];
-		mlag_counters->rx_fdb_sync = counters.counter[MASTER_RX];
-	}
-	else if(current_switch_status == SLAVE){
-		mlag_counters->tx_fdb_sync = counters.counter[SLAVE_TX];
-		mlag_counters->rx_fdb_sync = counters.counter[SLAVE_RX];
-	}
-	else{
-		mlag_counters->tx_fdb_sync = 0;
-		mlag_counters->rx_fdb_sync = 0;
-	}
-
-	return 0;
+    return 0;
 }
 
 /**

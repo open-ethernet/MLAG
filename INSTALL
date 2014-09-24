@@ -110,6 +110,7 @@ Then do the following steps :
              --with-oes=$PWD/../OES --with-oes-lib-path=/usr/local/lib/ --with-oes-lib-name=oesstub
              --with-ctrl-learn-hal-lib-path=/usr/local/lib/ --with-ctrl-learn-hal-lib-name=ctrllearnhalstub 
              --with-sl-lib-path=$PWD/src/libs/service_layer/.libs/ --with-sl-lib-name=servicelayer
+	     --with-nl-lib-path=$PWD/src/libs/notification_layer/.libs/ --with-nl-lib-name=mlagnotify
         4.3  run make && make install
 
 Running the mLAG process

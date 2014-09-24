@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef _MASTER_ELECTIONS_FSM_H
 #define _MASTER_ELECTIONS_FSM_H
@@ -113,7 +113,8 @@ typedef struct mlag_master_election_fsm {
  *
  * @return 0 when successful, otherwise ERROR
  */
-int mlag_master_election_fsm_print(struct mlag_master_election_fsm *fsm,
-		void (*dump_cb)(const char *,...));
+int mlag_master_election_fsm_print(struct mlag_master_election_fsm *fsm, void (*dump_cb)(
+                                       const char *,
+                                       ...));
 
 #endif /* _MASTER_ELECTIONS_FSM_H */

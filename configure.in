@@ -182,9 +182,46 @@ if test "x$with_sl_lib_name" != xnone; then
 fi
 AC_SUBST(SL_LIB_NAME_FULL_PREFIX)
 
+dnl Define an input config option to notification-layer lib path
+AC_ARG_WITH(nl_lib_path,
+[  --with-nl-lib-path=<dir> define nl library directory],
+AC_MSG_NOTICE(Using nl library from path:$with_nl_lib_path),
+with_nl_lib_path="none")
+NL_LIB_PATH_FULL_PREFIX=
+if test "x$with_nl_lib_path" != xnone; then
+  NL_LIB_PATH_FULL_PREFIX=$with_nl_lib_path
+fi
+AC_SUBST(NL_LIB_PATH_FULL_PREFIX)
+
+dnl Define an input config option to notification-layer lib name
+AC_ARG_WITH(nl_lib_name,
+[  --with-nl-lib-name=<dir> define nl library name],
+AC_MSG_NOTICE(Using nl library name:$with_nl_lib_name),
+with_nl_lib_name="none")
+NL_LIB_NAME_FULL_PREFIX=
+if test "x$with_nl_lib_name" != xnone; then
+  NL_LIB_NAME_FULL_PREFIX=$with_nl_lib_name
+fi
+AC_SUBST(NL_LIB_NAME_FULL_PREFIX)
+
 CFLAGS_MLAG_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused"
 AC_SUBST(CFLAGS_MLAG_COMMON)
 
 dnl Create the following Makefiles
-AC_OUTPUT([Makefile src/libs/mlag_common/Makefile src/libs/mlag_topology/Makefile src/libs/health_manager/Makefile src/libs/port_manager/Makefile src/libs/mlag_manager/Makefile src/libs/mlag_master_election/Makefile src/libs/mlag_l3_interface_manager/Makefile src/libs/mlag_mac_sync/Makefile src/libs/mlag_internal_api/Makefile src/libs/service_layer/Makefile src/libs/mlag_tunneling/Makefile src/api/Makefile src/Makefile ])
+AC_OUTPUT([	Makefile \
+		src/libs/mlag_common/Makefile \
+		src/libs/mlag_topology/Makefile \
+		src/libs/health_manager/Makefile \
+		src/libs/lacp_manager/Makefile \
+		src/libs/port_manager/Makefile \
+		src/libs/mlag_manager/Makefile \
+		src/libs/mlag_master_election/Makefile \
+		src/libs/mlag_l3_interface_manager/Makefile \
+		src/libs/mlag_mac_sync/Makefile \
+		src/libs/mlag_internal_api/Makefile \
+		src/libs/notification_layer/Makefile \
+		src/libs/service_layer/Makefile \
+		src/libs/mlag_tunneling/Makefile \
+		src/api/Makefile \
+		src/Makefile ])
 

@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_API_H_
 #define MLAG_API_H_
@@ -732,5 +732,102 @@ int
 mlag_api_router_mac_set(const enum access_cmd access_cmd,
                         const struct router_mac *router_macs_list,
                         const unsigned int router_macs_list_cnt);
+
+/**
+ * Sets MLAG port mode. Port mode can be either static or dynamic LAG.
+ * This function works asynchronously. After verifying its arguments are valid,
+ * it queues the operation and returns immediately.
+ *
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[in] port_mode - MLAG port mode of operation.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_port_mode_set(const unsigned long port_id,
+                       const enum mlag_port_mode port_mode);
+
+/**
+ * Returns the current MLAG port mode.
+ *
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[out] port_mode - MLAG port mode of operation.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_port_mode_get(const unsigned long port_id,
+                       enum mlag_port_mode *port_mode);
+
+/**
+ * Triggers a selection query to the MLAG module.
+ * Since MLAG is distributed, this request may involve a remote peer, so
+ * this function works asynchronously. The response for this request is
+ * guaranteed and it is issued as a notification when the response is available.
+ * When a delete command is used, only port_id parameter is relevant.
+ * Force option is relevant for ADD command and is given in order to allow
+ * releasing currently used key and migrating to the given partner. Force
+ * is not yet supported, and should be set to 0.
+ *
+ *
+ * @param[in] access_cmd - ADD/DELETE.
+ * @param[in] request_id - index given by caller that will appear in reply
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[in] partner_sys_id - partner ID (taken from LACP PDU)
+ * @param[in] partner_key - partner operational Key (taken from LACP PDU)
+ * @param[in] force - force partner to be selected (will release partner in use)
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_lacp_selection_request(const enum access_cmd access_cmd,
+                                const unsigned int request_id,
+                                const unsigned long port_id,
+                                const unsigned long long partner_sys_id,
+                                const unsigned int partner_key,
+                                const unsigned char force);
+
+/**
+ * Sets the local system ID for LACP PDUs. This API should be called before
+ * starting mlag protocol when LACP is enabled.
+ * This function works asynchronously.
+ *
+ * @param[in] local_sys_id - local sys ID (for LACP PDU)
+ * @param[in] local_sys_prio - local sys priority (for LACP PDU)
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_lacp_local_sys_id_set(const unsigned long long local_sys_id);
+
+/**
+ * Gets actor attributes. The actor attributes are
+ * system ID to be used in the LACP PDU and a chassis ID
+ * which is an index of this node within the MLAG
+ * cluster, with a value in the range of 0..15
+ *
+ * @param[out] actor_sys_id - actor sys ID (for LACP PDU)
+ * @param[out] chassis_id - MLAG cluster chassis ID, range 0..15
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_lacp_actor_parameters_get(unsigned long long *actor_sys_id,
+                                   unsigned int *chassis_id);
 
 #endif

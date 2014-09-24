@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #define MLAG_CONF_C_
 
@@ -38,6 +38,7 @@
 #include <libs/mlag_topology/mlag_topology.h>
 #include "mlag_conf.h"
 #include <libs/port_manager/port_manager.h>
+#include <libs/lacp_manager/lacp_manager.h>
 #include <libs/mlag_tunneling/mlag_tunneling.h>
 #include <libs/health_manager/health_manager.h>
 #include <libs/mlag_manager/mlag_manager.h>
@@ -102,6 +103,8 @@ mlag_ports_state_change_notify(const struct port_state_info *ports_arr,
 
     BAIL_MLAG_NOT_INIT();
 
+    SAFE_MEMSET(&state_change, 0);
+
     for (i = 0; i < ports_arr_cnt; i++) {
         state_change.port_id = ports_arr[i].port_id;
         state_change.is_ipl = FALSE;
@@ -116,6 +119,7 @@ mlag_ports_state_change_notify(const struct port_state_info *ports_arr,
         }
 
         state_change.state = ports_arr[i].port_state;
+        state_change.mlag_id = INVALID_MLAG_PEER_ID;
 
         err = send_system_event(MLAG_PORT_OPER_STATE_CHANGE_EVENT,
                                 &state_change,
@@ -293,6 +297,10 @@ mlag_counters_get(const unsigned int *ipl_ids,
     err = health_manager_counters_get(counters);
     MLAG_BAIL_ERROR(err);
 
+    /* get lacp manager counters */
+    err = lacp_manager_counters_get(counters);
+    MLAG_BAIL_ERROR(err);
+
 bail:
     return err;
 }
@@ -319,6 +327,7 @@ mlag_counters_clear(void)
     mlag_manager_counters_clear();
     port_manager_counters_clear();
     mlag_mac_sync_counters_clear();
+    lacp_manager_counters_clear();
 
 bail:
     return err;
@@ -1055,6 +1064,9 @@ mlag_dump(char *dump_file_path)
     err = mlag_mac_sync_dump(dump_to_file);
     MLAG_BAIL_ERROR(err);
 
+    err = lacp_manager_dump(dump_to_file);
+    MLAG_BAIL_ERROR(err);
+
 bail:
     if (dump_file) {
         fclose(dump_file);
@@ -1100,6 +1112,174 @@ mlag_router_mac_set(const enum access_cmd access_cmd,
 
     err = send_system_event(MLAG_ROUTER_MAC_CFG_EVENT,
                             &state_change, sizeof(state_change));
+    MLAG_BAIL_ERROR(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Sets MLAG port mode. Port mode can be either static or dynamic LAG.
+ * This function works asynchronously. After verifying its arguments are valid,
+ * it queues the operation and returns immediately.
+ *
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[in] port_mode - MLAG port mode of operation.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_port_mode_set(const unsigned long port_id,
+                   const enum mlag_port_mode port_mode)
+{
+    int err = 0;
+    struct port_mode_set_event_data mode_set;
+
+    BAIL_MLAG_NOT_INIT();
+
+    mode_set.port_id = port_id;
+    mode_set.port_mode = port_mode;
+
+    err = send_system_event(MLAG_PORT_MODE_SET_EVENT, &mode_set,
+                            sizeof(mode_set));
+    MLAG_BAIL_ERROR(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Returns the current MLAG port mode.
+ *
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[out] port_mode - MLAG port mode of operation.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_port_mode_get(const unsigned long port_id,
+                   enum mlag_port_mode *port_mode)
+{
+    int err = 0;
+
+    BAIL_MLAG_NOT_INIT();
+
+    err = port_manager_port_mode_get(port_id, port_mode);
+    MLAG_BAIL_ERROR(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Sets the local system ID for LACP PDUs. This API should be called before
+ * starting mlag protocol when LACP is enabled.
+ * This function works asynchronously.
+ *
+ * @param[in] local_sys_id - local sys ID (for LACP PDU)
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_lacp_local_sys_id_set(const unsigned long long local_sys_id)
+{
+    int err = 0;
+    struct lacp_sys_id_set_data sys_id_set;
+
+    BAIL_MLAG_NOT_INIT();
+
+    sys_id_set.sys_id = local_sys_id;
+
+    err = send_system_event(MLAG_LACP_SYS_ID_SET, &sys_id_set,
+                            sizeof(sys_id_set));
+    MLAG_BAIL_ERROR(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Gets actor attributes. The actor attributes are
+ * system ID, system priority to be used in the LACP PDU
+ * and a chassis ID which is an index of this node within the MLAG
+ * cluster, with a value in the range of 0..15
+ *
+ * @param[out] actor_sys_id - actor sys ID (for LACP PDU)
+ * @param[out] chassis_id - MLAG cluster chassis ID, range 0..15
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_lacp_actor_parameters_get(unsigned long long *actor_sys_id,
+                               unsigned int *chassis_id)
+{
+    int err = 0;
+
+    err = lacp_manager_actor_parameters_get(actor_sys_id, chassis_id);
+    MLAG_BAIL_ERROR(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Triggers a selection query to the MLAG module.
+ * Since MLAG is distributed, this request may involve a remote peer, so
+ * this function works asynchronously. The response for this request is
+ * guaranteed and it is issued as a notification when the response is available.
+ * When a delete command is used, only port_id parameter is relevant.
+ * Force option is relevant for ADD command and is given in order to allow
+ * releasing currently used key and migrating to the given partner.
+ *
+ * @param[in] access_cmd - ADD/DELETE.
+ * @param[in] request_id - index given by caller that will appear in reply
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[in] partner_sys_id - partner ID (taken from LACP PDU)
+ * @param[in] partner_key - partner operational Key (taken from LACP PDU)
+ * @param[in] force - force positive notification (will release key in use)
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_lacp_selection_request(enum access_cmd access_cmd,
+                            unsigned int request_id,
+                            unsigned long port_id,
+                            unsigned long long partner_sys_id,
+                            unsigned int partner_key,
+                            unsigned char force)
+{
+    int err = 0;
+    struct lacp_selection_request_event_data request;
+
+    BAIL_MLAG_NOT_INIT();
+
+    request.unselect = FALSE;
+    if (access_cmd == ACCESS_CMD_DELETE) {
+        request.unselect = TRUE;
+    }
+    request.request_id = request_id;
+    request.port_id = port_id;
+    request.partner_sys_id = partner_sys_id;
+    request.partner_key = partner_key;
+    request.force = force;
+
+    err = send_system_event(MLAG_LACP_SELECTION_REQUEST, &request,
+                            sizeof(request));
     MLAG_BAIL_ERROR(err);
 
 bail:

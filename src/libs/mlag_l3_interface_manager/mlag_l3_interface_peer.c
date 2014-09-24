@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_init.h>
@@ -130,8 +130,8 @@ mlag_l3_interface_peer_init(void)
     int i;
 
     if (is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface peer init called twice\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "l3 interface peer init called twice\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface peer init\n");
@@ -161,8 +161,9 @@ mlag_l3_interface_peer_deinit(void)
     int err = 0;
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface peer deinit called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "l3 interface peer deinit called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface peer deinit\n");
@@ -186,8 +187,9 @@ mlag_l3_interface_peer_start(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface peer start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "l3 interface peer start called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface peer manager start\n");
@@ -201,12 +203,11 @@ mlag_l3_interface_peer_start(uint8_t *data)
 
     /* Configure IPL as member of vlan of ipl l3 interface for control messages */
     if ((ipl_vlan_id > 0) &&
-    	(ipl_vlan_id < VLAN_N_VID)) {
-
+        (ipl_vlan_id < VLAN_N_VID)) {
         err = mlag_topology_ipl_port_get(0, &ipl_ifindex);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to get ipl data from mlag topology database upon start, err=%d\n",
-        		err);
+                            "Failed to get ipl data from mlag topology database upon start, err=%d\n",
+                            err);
 
         /* For start after disable mlag protocol vlan_id as well as
          * ipl ifindex are not relevant.
@@ -226,8 +227,8 @@ mlag_l3_interface_peer_start(uint8_t *data)
                                                 ipl_ifindex,
                                                 &ipl_vlan_id, 1);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to set ipl vlan membership, err=%d, ipl=%lu, vlan_id=%d\n",
-        		err, ipl_ifindex, ipl_vlan_id);
+                            "Failed to set ipl vlan membership, err=%d, ipl=%lu, vlan_id=%d\n",
+                            err, ipl_ifindex, ipl_vlan_id);
 
         ipl_vlan_list[ipl_vlan_id] = 1;
         mlag_l3_interface_inc_cnt(ADD_IPL_TO_VLAN_EVENTS_SENT);
@@ -259,13 +260,13 @@ mlag_l3_interface_peer_stop(uint8_t *data)
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface peer manager stop\n");
 
     /* Check on ipl ifindex validity */
-	err = mlag_topology_ipl_port_get(0, &ipl_ifindex);
+    err = mlag_topology_ipl_port_get(0, &ipl_ifindex);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get ipl data from mlag topology database upon stop, err=%d\n",
-    		err);
+                        "Failed to get ipl data from mlag topology database upon stop, err=%d\n",
+                        err);
 
     if (ipl_ifindex == 0) {
-    	goto bail;
+        goto bail;
     }
     /* Remove IPL from all vlans */
     for (i = 1; i < VLAN_N_VID; i++) {
@@ -278,11 +279,12 @@ mlag_l3_interface_peer_stop(uint8_t *data)
     }
 
     if (num_vlans_to_del) {
-    	err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_DELETE,
-    			ipl_ifindex, sl_vlan_list, num_vlans_to_del);
+        err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_DELETE,
+                                                ipl_ifindex, sl_vlan_list,
+                                                num_vlans_to_del);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to delete ipl vlan membership, err=%d, ipl_ifindex=%lu, num_vlans_to_del=%d\n",
-        		err, ipl_ifindex, num_vlans_to_del);
+                            "Failed to delete ipl vlan membership, err=%d, ipl_ifindex=%lu, num_vlans_to_del=%d\n",
+                            err, ipl_ifindex, num_vlans_to_del);
     }
 
 bail:
@@ -315,8 +317,8 @@ mlag_l3_interface_peer_peer_start(struct peer_state_change_data *data)
                                        sizeof(ev), MASTER_PEER_ID,
                                        PEER_MANAGER);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in sending MLAG_L3_SYNC_START_EVENT, err=%d\n",
-    		err);
+                        "Failed in sending MLAG_L3_SYNC_START_EVENT, err=%d\n",
+                        err);
 
 bail:
     return err;
@@ -337,18 +339,17 @@ mlag_l3_interface_peer_ipl_port_set(struct ipl_port_set_event_data *data)
     ASSERT(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "ipl port set called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "ipl port set called before init\n");
     }
 
     mlag_l3_interface_inc_cnt(L3_INTERFACE_IPL_PORT_SET_EVENTS_RCVD);
 
     if (data->ifindex == 0) {
-    	/* Remove ipl port from ipl vlan due to disconnect of IPL from port-channel */
+        /* Remove ipl port from ipl vlan due to disconnect of IPL from port-channel */
         /* Check if IPL is a member of the vlan */
         if ((ipl_vlan_id != 0) &&
-        	(ipl_vlan_list[ipl_vlan_id] == 1)) {
-
+            (ipl_vlan_list[ipl_vlan_id] == 1)) {
             MLAG_LOG(MLAG_LOG_NOTICE,
                      "mlag internal delete vlan %d from ipl vlan list\n",
                      ipl_vlan_id);
@@ -356,28 +357,26 @@ mlag_l3_interface_peer_ipl_port_set(struct ipl_port_set_event_data *data)
         }
     }
     else {
-
-    	if (!is_started) {
+        if (!is_started) {
             MLAG_LOG(MLAG_LOG_NOTICE,
                      "ipl port set event ignored because it called before start: ipl=%d, ipl_vlan=%d\n",
                      data->ifindex, ipl_vlan_id);
             goto bail;
         }
-    	/* Connect port-channel to ipl */
-    	/* If ipl vlan is not configured on ipl yet configure it here */
+        /* Connect port-channel to ipl */
+        /* If ipl vlan is not configured on ipl yet configure it here */
         if ((ipl_vlan_id != 0) &&
-          	(ipl_vlan_list[ipl_vlan_id] == 0)) {
-
+            (ipl_vlan_list[ipl_vlan_id] == 0)) {
             MLAG_LOG(MLAG_LOG_NOTICE, "Add ipl=%d to ipl vlan=%d\n",
                      data->ifindex, ipl_vlan_id);
 
             /* Add IPL to vlan */
             err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_ADD,
-            										data->ifindex,
+                                                    data->ifindex,
                                                     &ipl_vlan_id, 1);
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed to add ipl vlan membership: ipl=%d, ipl_vlan=%d, err=%d\n",
-            		data->ifindex, ipl_vlan_id, err);
+                                "Failed to add ipl vlan membership: ipl=%d, ipl_vlan=%d, err=%d\n",
+                                data->ifindex, ipl_vlan_id, err);
             ipl_vlan_list[ipl_vlan_id] = 1;
             mlag_l3_interface_inc_cnt(ADD_IPL_TO_VLAN_EVENTS_SENT);
         }
@@ -409,12 +408,13 @@ mlag_l3_interface_peer_vlan_interface_add(struct peer_conf_event_data *data)
     ASSERT(data);
 
     if (!is_inited) {
-    	MLAG_BAIL_ERROR_MSG(err, "Add ipl to vlan interface called before init\n");
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Add ipl to vlan interface called before init\n");
     }
 
     /* vlan_id can be 0 when delete peer event accepted */
     if (!(data->vlan_id < VLAN_N_VID)) {
-    	MLAG_BAIL_ERROR_MSG(err, "vlan id %d is not valid\n", data->vlan_id);
+        MLAG_BAIL_ERROR_MSG(err, "vlan id %d is not valid\n", data->vlan_id);
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "Add ipl to vlan interface %d\n", data->vlan_id);
@@ -430,13 +430,12 @@ mlag_l3_interface_peer_vlan_interface_add(struct peer_conf_event_data *data)
 
     /* Check if IPL is not a member of the vlan */
     if ((ipl_vlan_id != 0) &&
-    	(ipl_vlan_list[ipl_vlan_id] == 0)) {
-
+        (ipl_vlan_list[ipl_vlan_id] == 0)) {
         /* Add IPL to vlan */
         err = mlag_topology_ipl_port_get(0, &ipl_ifindex);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to get ipl port data from mlag topology: ipl vlan id=%d, ipl ifindex=%lu, err=%d\n",
-        		ipl_vlan_id, ipl_ifindex, err);
+                            "Failed to get ipl port data from mlag topology: ipl vlan id=%d, ipl ifindex=%lu, err=%d\n",
+                            ipl_vlan_id, ipl_ifindex, err);
 
         if (ipl_ifindex == 0) {
             goto bail;
@@ -445,8 +444,8 @@ mlag_l3_interface_peer_vlan_interface_add(struct peer_conf_event_data *data)
                                                 ipl_ifindex,
                                                 &ipl_vlan_id, 1);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to add ipl %lu to vlan interface %d, err %d\n",
-        		ipl_ifindex, ipl_vlan_id, err);
+                            "Failed to add ipl %lu to vlan interface %d, err %d\n",
+                            ipl_ifindex, ipl_vlan_id, err);
 
         ipl_vlan_list[ipl_vlan_id] = 1;
         mlag_l3_interface_inc_cnt(ADD_IPL_TO_VLAN_EVENTS_SENT);
@@ -467,15 +466,17 @@ mlag_l3_interface_peer_vlan_interface_del()
     int err = 0;
 
     if (!is_inited) {
-    	MLAG_BAIL_ERROR_MSG(err, "Delete ipl from vlan interface called before init\n");
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Delete ipl from vlan interface called before init\n");
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "Delete ipl from vlan interface: ipl_vlan_id=%d\n",
-    		 ipl_vlan_id);
+    MLAG_LOG(MLAG_LOG_NOTICE,
+             "Delete ipl from vlan interface: ipl_vlan_id=%d\n",
+             ipl_vlan_id);
 
     /* Check if IPL is not a member of the vlan */
     if ((ipl_vlan_id != 0) &&
-    	(ipl_vlan_list[ipl_vlan_id] == 1)) {
+        (ipl_vlan_list[ipl_vlan_id] == 1)) {
         ipl_vlan_list[ipl_vlan_id] = 0;
     }
 
@@ -498,22 +499,29 @@ mlag_l3_interface_peer_local_sync_done(uint8_t *data)
     struct sync_event_data ev;
     struct mlag_master_election_status master_election_current_status;
 
+    if (!is_started) {
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "Peer local sync done event accepted before start of module\n");
+        goto bail;
+    }
+
     MLAG_LOG(MLAG_LOG_NOTICE,
-    		"send MLAG_L3_SYNC_FINISH_EVENT to master logic\n");
+             "send MLAG_L3_SYNC_FINISH_EVENT to master logic\n");
 
     err = mlag_master_election_get_status(&master_election_current_status);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get status from master election in handling of local sync done event, err=%d\n",
-    		err);
+                        "Failed to get status from master election in handling of local sync done event, err=%d\n",
+                        err);
 
     /* Send MLAG_L3_SYNC_FINISH_EVENT to Master Logic */
     ev.peer_id = master_election_current_status.my_peer_id;
     ev.state = 1;
     err = mlag_dispatcher_message_send(MLAG_L3_SYNC_FINISH_EVENT,
-    		&ev, sizeof(ev), MASTER_PEER_ID, PEER_MANAGER);
+                                       &ev, sizeof(ev), MASTER_PEER_ID,
+                                       PEER_MANAGER);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in sending MLAG_L3_SYNC_FINISH_EVENT, err=%d\n",
-    		err);
+                        "Failed in sending MLAG_L3_SYNC_FINISH_EVENT, err=%d\n",
+                        err);
 
 bail:
     return err;
@@ -539,8 +547,8 @@ mlag_l3_interface_peer_master_sync_done(uint8_t *data)
     /* Send query to update local vlans operational states */
     err = sl_api_vlan_oper_status_trigger_get();
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in local vlan oper status trigger, err=%d\n",
-    		err);
+                        "Failed in local vlan oper status trigger, err=%d\n",
+                        err);
 
 bail:
     return err;
@@ -577,24 +585,26 @@ mlag_l3_interface_peer_vlan_local_state_change(
     }
 
     MLAG_LOG(MLAG_LOG_INFO, "Vlan local state change event: number vlans %d\n",
-    		 data->vlans_arr_cnt);
+             data->vlans_arr_cnt);
 
     if ((!data->vlans_arr_cnt) ||
         (data->vlans_arr_cnt >= VLAN_N_VID)) {
-    	err = -EINVAL;
-    	MLAG_BAIL_ERROR_MSG(EINVAL,	"Invalid vlans array_counter %d",
-    			data->vlans_arr_cnt);
+        err = -EINVAL;
+        MLAG_BAIL_ERROR_MSG(EINVAL, "Invalid vlans array_counter %d",
+                            data->vlans_arr_cnt);
     }
 
-    for (i=0; i < data->vlans_arr_cnt; i++) {
-    	if (!(((data->vlan_data[i].vlan_id > 0) &&
-    		   (data->vlan_data[i].vlan_id < VLAN_N_VID)) &&
-    		  ((data->vlan_data[i].vlan_state == VLAN_DOWN) ||
-    		   (data->vlan_data[i].vlan_state == VLAN_UP)))) {
-        	MLAG_BAIL_ERROR_MSG(EINVAL,	"Invalid vlan parameters: vlan id=%d, vlan state=%s",
-        			data->vlan_data[i].vlan_id,
-        			(data->vlan_data[i].vlan_state == VLAN_UP) ? "up" : "down");
-    	}
+    for (i = 0; i < data->vlans_arr_cnt; i++) {
+        if (!(((data->vlan_data[i].vlan_id > 0) &&
+               (data->vlan_data[i].vlan_id < VLAN_N_VID)) &&
+              ((data->vlan_data[i].vlan_state == VLAN_DOWN) ||
+               (data->vlan_data[i].vlan_state == VLAN_UP)))) {
+            MLAG_BAIL_ERROR_MSG(EINVAL,
+                                "Invalid vlan parameters: vlan id=%d, vlan state=%s",
+                                data->vlan_data[i].vlan_id,
+                                (data->vlan_data[i].vlan_state ==
+                                 VLAN_UP) ? "up" : "down");
+        }
     }
 
     mlag_l3_interface_inc_cnt(VLAN_LOCAL_STATE_EVENTS_RCVD);
@@ -603,11 +613,11 @@ mlag_l3_interface_peer_vlan_local_state_change(
      * to Master Logic */
     err = mlag_master_election_get_status(&master_election_current_status);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get status from master election in handling of vlan local state change event, err=%d\n",
-    		err);
+                        "Failed to get status from master election in handling of vlan local state change event, err=%d\n",
+                        err);
 
     ev_len = sizeof(struct vlan_state_change_base_event_data) +
-    		 sizeof(data->vlan_data[0]) * data->vlans_arr_cnt;
+             sizeof(data->vlan_data[0]) * data->vlans_arr_cnt;
 
     data->peer_id = master_election_current_status.my_peer_id;
 
@@ -615,8 +625,8 @@ mlag_l3_interface_peer_vlan_local_state_change(
         MLAG_L3_INTERFACE_VLAN_LOCAL_STATE_CHANGE_FROM_PEER_EVENT,
         data, ev_len, MASTER_PEER_ID, PEER_MANAGER);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in sending MLAG_L3_INTERFACE_VLAN_LOCAL_STATE_CHANGE_FROM_PEER_EVENT, err=%d\n",
-    		err);
+                        "Failed in sending MLAG_L3_INTERFACE_VLAN_LOCAL_STATE_CHANGE_FROM_PEER_EVENT, err=%d\n",
+                        err);
 
 bail:
     return err;
@@ -652,57 +662,63 @@ mlag_l3_interface_peer_vlan_global_state_change(
                  "Vlan global state change event accepted before peer start event\n");
     }
 
-    MLAG_LOG(MLAG_LOG_INFO, "Vlan global state change event: number vlans %d\n",
+    MLAG_LOG(MLAG_LOG_INFO,
+             "Vlan global state change event: number vlans %d\n",
              data->vlans_arr_cnt);
 
     mlag_l3_interface_inc_cnt(VLAN_GLOBAL_STATE_EVENTS_RCVD);
 
-    for (i=0; i < data->vlans_arr_cnt; i++) {
-    	vlan_id = data->vlan_data[i].vlan_id;
-    	if (data->vlan_data[i].vlan_state == VLAN_GLOBAL_DOWN) {
-    		/* Check if IPL is a member of the vlan */
-    		if (ipl_vlan_list[vlan_id] == 1) {
-    			/* Remove IPL from vlan */
-    			/* Do not remove vlan of mlag control messages interface from ipl */
-    			if (vlan_id != ipl_vlan_id) {
-    				ipl_vlan_list[vlan_id] = 0;
-    				sl_vlan_list[num_vlans_to_del++] = vlan_id;
-    				mlag_l3_interface_inc_cnt(DEL_IPL_FROM_VLAN_EVENTS_SENT);
-    			}
-    			else {
-    				MLAG_LOG(MLAG_LOG_NOTICE,
-    						"ignored ipl vlan %d, state=%s\n",
-    						vlan_id, l3_interface_vlan_global_state_str[data->vlan_data[i].vlan_state]);
-    			}
-    		}
-    	}
+    for (i = 0; i < data->vlans_arr_cnt; i++) {
+        vlan_id = data->vlan_data[i].vlan_id;
+        if (data->vlan_data[i].vlan_state == VLAN_GLOBAL_DOWN) {
+            /* Check if IPL is a member of the vlan */
+            if (ipl_vlan_list[vlan_id] == 1) {
+                /* Remove IPL from vlan */
+                /* Do not remove vlan of mlag control messages interface from ipl */
+                if (vlan_id != ipl_vlan_id) {
+                    ipl_vlan_list[vlan_id] = 0;
+                    sl_vlan_list[num_vlans_to_del++] = vlan_id;
+                    mlag_l3_interface_inc_cnt(DEL_IPL_FROM_VLAN_EVENTS_SENT);
+                }
+                else {
+                    MLAG_LOG(MLAG_LOG_NOTICE,
+                             "ignored ipl vlan %d, state=%s\n",
+                             vlan_id,
+                             l3_interface_vlan_global_state_str[data->vlan_data
+                                                                [i].
+                                                                vlan_state]);
+                }
+            }
+        }
     }
     if (num_vlans_to_del) {
-    	err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_DELETE,
-    			ipl_ifindex, sl_vlan_list, num_vlans_to_del);
+        err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_DELETE,
+                                                ipl_ifindex, sl_vlan_list,
+                                                num_vlans_to_del);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to delete ipl vlan membership, err=%d\n",
-        		err);
+                            "Failed to delete ipl vlan membership, err=%d\n",
+                            err);
     }
 
-    for (i=0; i < data->vlans_arr_cnt; i++) {
-    	vlan_id = data->vlan_data[i].vlan_id;
-    	if (data->vlan_data[i].vlan_state == VLAN_GLOBAL_UP) {
-    		/* Check if IPL is not a member of the vlan */
-    		if (ipl_vlan_list[vlan_id] == 0) {
-    			/* Add IPL to vlan */
-    			ipl_vlan_list[vlan_id] = 1;
-    			sl_vlan_list[num_vlans_to_add++] = vlan_id;
-    			mlag_l3_interface_inc_cnt(ADD_IPL_TO_VLAN_EVENTS_SENT);
-    		}
-    	}
+    for (i = 0; i < data->vlans_arr_cnt; i++) {
+        vlan_id = data->vlan_data[i].vlan_id;
+        if (data->vlan_data[i].vlan_state == VLAN_GLOBAL_UP) {
+            /* Check if IPL is not a member of the vlan */
+            if (ipl_vlan_list[vlan_id] == 0) {
+                /* Add IPL to vlan */
+                ipl_vlan_list[vlan_id] = 1;
+                sl_vlan_list[num_vlans_to_add++] = vlan_id;
+                mlag_l3_interface_inc_cnt(ADD_IPL_TO_VLAN_EVENTS_SENT);
+            }
+        }
     }
     if (num_vlans_to_add) {
-    	err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_ADD,
-    			ipl_ifindex, sl_vlan_list, num_vlans_to_add);
+        err = sl_api_ipl_vlan_membership_action(OES_ACCESS_CMD_ADD,
+                                                ipl_ifindex, sl_vlan_list,
+                                                num_vlans_to_add);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to add ipl vlan membership, err=%d\n",
-        		err);
+                            "Failed to add ipl vlan membership, err=%d\n",
+                            err);
     }
 
 bail:
@@ -722,16 +738,16 @@ mlag_l3_interface_peer_print(void (*dump_cb)(const char *, ...))
     int i, cnt, total_cnt, tmp;
 
     if (dump_cb == NULL) {
-       	MLAG_LOG(MLAG_LOG_NOTICE, "L3 interface local peer dump:\n");
-    	MLAG_LOG(MLAG_LOG_NOTICE, "is_initialized=%d, is_started=%d, "
-    	        "is_peer_start=%d, is_master_sync_done=%d\n",
-    			 is_inited, is_started, is_peer_start, is_master_sync_done);
+        MLAG_LOG(MLAG_LOG_NOTICE, "L3 interface local peer dump:\n");
+        MLAG_LOG(MLAG_LOG_NOTICE, "is_initialized=%d, is_started=%d, "
+                 "is_peer_start=%d, is_master_sync_done=%d\n",
+                 is_inited, is_started, is_peer_start, is_master_sync_done);
     }
     else {
-    	dump_cb("L3 interface local peer dump:\n");
-    	dump_cb("is_initialized=%d, is_started=%d, is_peer_start=%d, "
-    	        "is_master_sync_done=%d\n",
-   			    is_inited, is_started, is_peer_start, is_master_sync_done);
+        dump_cb("L3 interface local peer dump:\n");
+        dump_cb("is_initialized=%d, is_started=%d, is_peer_start=%d, "
+                "is_master_sync_done=%d\n",
+                is_inited, is_started, is_peer_start, is_master_sync_done);
     }
 
     if (dump_cb == NULL) {
@@ -757,40 +773,41 @@ mlag_l3_interface_peer_print(void (*dump_cb)(const char *, ...))
 
     for (i = 1, total_cnt = 0; i < VLAN_N_VID; i++) {
         if (ipl_vlan_list[i]) {
-        	total_cnt++;
+            total_cnt++;
         }
     }
     for (i = 1, cnt = 0, tmp = 0; i < VLAN_N_VID; i++) {
         if (ipl_vlan_list[i]) {
-        	if ((++cnt > 100) &&
-                (cnt < (total_cnt-100))) {
-        		continue;
-        	}
-       		tmp++;
-       		if (dump_cb == NULL) {
-       			MLAG_LOG(MLAG_LOG_NOTICE, "%d  ", i);
-       		}
-       		else {
-       			dump_cb("%d  ", i);
-       		}
-        	if (tmp >= 10) {
-        		if (dump_cb == NULL) {
-        			MLAG_LOG(MLAG_LOG_NOTICE, "\n");
-        		}
-        		else {
-        			dump_cb("\n");
-        		}
-        		tmp = 0;
-        	}
+            if ((++cnt > 100) &&
+                (cnt < (total_cnt - 100))) {
+                continue;
+            }
+            tmp++;
+            if (dump_cb == NULL) {
+                MLAG_LOG(MLAG_LOG_NOTICE, "%d  ", i);
+            }
+            else {
+                dump_cb("%d  ", i);
+            }
+            if (tmp >= 10) {
+                if (dump_cb == NULL) {
+                    MLAG_LOG(MLAG_LOG_NOTICE, "\n");
+                }
+                else {
+                    dump_cb("\n");
+                }
+                tmp = 0;
+            }
         }
     }
     if (dump_cb == NULL) {
-    	MLAG_LOG(MLAG_LOG_NOTICE, "\ntotal vlans in ipl_vlan_list: %d\n", total_cnt);
-    	MLAG_LOG(MLAG_LOG_NOTICE, "\n");
+        MLAG_LOG(MLAG_LOG_NOTICE, "\ntotal vlans in ipl_vlan_list: %d\n",
+                 total_cnt);
+        MLAG_LOG(MLAG_LOG_NOTICE, "\n");
     }
     else {
-    	dump_cb("\ntotal vlans in ipl_vlan_list: %d\n", total_cnt);
-    	dump_cb("\n");
+        dump_cb("\ntotal vlans in ipl_vlan_list: %d\n", total_cnt);
+        dump_cb("\n");
     }
 
 bail:
@@ -805,5 +822,5 @@ bail:
 uint16_t
 mlag_l3_interface_peer_get_ipl_vlan_id(void)
 {
-	return ipl_vlan_id;
+    return ipl_vlan_id;
 }

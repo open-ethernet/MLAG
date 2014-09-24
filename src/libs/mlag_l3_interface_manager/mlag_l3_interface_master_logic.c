@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_init.h>
@@ -129,8 +129,9 @@ mlag_l3_interface_master_logic_init(void)
     int i, j;
 
     if (is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface master logic init called twice\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "l3 interface master logic init called twice\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface master logic init\n");
@@ -164,8 +165,9 @@ mlag_l3_interface_master_logic_deinit(void)
     int err = 0;
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface master logic deinit called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "l3 interface master logic deinit called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface master logic deinit\n");
@@ -192,8 +194,9 @@ mlag_l3_interface_master_logic_start(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface master logic start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "l3 interface master logic start called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface master logic start\n");
@@ -300,12 +303,12 @@ mlag_l3_interface_master_logic_vlan_state_change(
     ASSERT(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "vlan state change called before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "vlan state change called before start\n");
     }
 
     MLAG_LOG(MLAG_LOG_INFO, "vlan state change with number vlans %d\n",
-    		 data->vlans_arr_cnt);
+             data->vlans_arr_cnt);
 
     mlag_l3_interface_inc_cnt(VLAN_LOCAL_STATE_EVENTS_RCVD_FROM_PEER);
 
@@ -345,8 +348,8 @@ mlag_l3_interface_master_logic_vlan_state_change(
                     MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT,
                     &vlan_state_change_event, ev_len, i, MASTER_LOGIC);
                 MLAG_BAIL_ERROR_MSG(err,
-                		"Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
-                		err);
+                                    "Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
+                                    err);
             }
         }
     }
@@ -373,15 +376,16 @@ mlag_l3_interface_master_logic_sync_start(struct sync_event_data *data)
     ASSERT(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "sync start called before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "sync start called before start\n");
     }
     if (!(((data->peer_id >= 0) &&
            (data->peer_id < MLAG_MAX_PEERS)) &&
           (data->state == 0))) {
-    	MLAG_BAIL_ERROR_MSG(EINVAL,	"Invalid parameters in master logic peer start: peer id=%d, vlan state=%s",
-    			data->peer_id,
-    			(data->state == 0) ? "start" : "finish");
+        MLAG_BAIL_ERROR_MSG(EINVAL,
+                            "Invalid parameters in master logic peer start: peer id=%d, vlan state=%s",
+                            data->peer_id,
+                            (data->state == 0) ? "start" : "finish");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "sync start for peer %d\n",
@@ -391,7 +395,7 @@ mlag_l3_interface_master_logic_sync_start(struct sync_event_data *data)
      * For each vlan in global up state send
      * MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT to given peer only
      */
-    for (i=1, j=0; i < VLAN_N_VID; i++) {
+    for (i = 1, j = 0; i < VLAN_N_VID; i++) {
         if (vlan_global_state[i] == VLAN_GLOBAL_UP) {
             /* Send MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT
              * to the peer in sync */
@@ -415,8 +419,8 @@ mlag_l3_interface_master_logic_sync_start(struct sync_event_data *data)
             MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT,
             &vlan_state_change_event, ev_len, data->peer_id, MASTER_LOGIC);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
-        		err);
+                            "Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
+                            err);
     }
 
     /* Set peer state to tx enable in order to enable sending
@@ -431,8 +435,8 @@ mlag_l3_interface_master_logic_sync_start(struct sync_event_data *data)
         MLAG_L3_INTERFACE_MASTER_SYNC_DONE_EVENT, &ev1, sizeof(ev1),
         data->peer_id, MASTER_LOGIC);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in sending MLAG_L3_INTERFACE_MASTER_SYNC_DONE_EVENT, err %d\n",
-    		err);
+                        "Failed in sending MLAG_L3_INTERFACE_MASTER_SYNC_DONE_EVENT, err %d\n",
+                        err);
 
 bail:
     return err;
@@ -461,23 +465,24 @@ mlag_l3_interface_master_logic_sync_finish(struct sync_event_data *data)
     if (!(((data->peer_id >= 0) &&
            (data->peer_id < MLAG_MAX_PEERS)) &&
           (data->state == 1))) {
-    	MLAG_BAIL_ERROR_MSG(EINVAL,	"Invalid parameters in master logic sync finish: peer id=%d, vlan state=%s",
-    			data->peer_id,
-    			(data->state == 0) ? "start" : "finish");
+        MLAG_BAIL_ERROR_MSG(EINVAL,
+                            "Invalid parameters in master logic sync finish: peer id=%d, vlan state=%s",
+                            data->peer_id,
+                            (data->state == 0) ? "start" : "finish");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "sync finish for peer %d\n",
-    		 data->peer_id);
+             data->peer_id);
 
     /* Send MLAG_PEER_SYNC_DONE to MLag protocol manager */
     sync_done.peer_id = data->peer_id;
     sync_done.state = TRUE;
     sync_done.sync_type = L3_PEER_SYNC;
     err = send_system_event(MLAG_PEER_SYNC_DONE,
-    		&sync_done, sizeof(sync_done));
+                            &sync_done, sizeof(sync_done));
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed in send_system_event for MLAG_PEER_SYNC_DONE, err %d\n",
-    		err);
+                        "Failed in send_system_event for MLAG_PEER_SYNC_DONE, err %d\n",
+                        err);
 
 bail:
     return err;
@@ -501,8 +506,8 @@ mlag_l3_interface_master_logic_peer_enable(struct peer_state_change_data *data)
     ASSERT(data);
 
     if (!is_started) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "peer enable called before start\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "peer enable called before start\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "peer enable for peer %d\n",
@@ -511,8 +516,9 @@ mlag_l3_interface_master_logic_peer_enable(struct peer_state_change_data *data)
     if (!(((data->mlag_id >= 0) &&
            (data->mlag_id < MLAG_MAX_PEERS)) &&
           (data->state == PEER_ENABLE))) {
-    	MLAG_BAIL_ERROR_MSG(EINVAL,	"Invalid parameters in peer enable: mlag id=%d, vlan state=%d",
-    			data->mlag_id, data->state);
+        MLAG_BAIL_ERROR_MSG(EINVAL,
+                            "Invalid parameters in peer enable: mlag id=%d, vlan state=%d",
+                            data->mlag_id, data->state);
     }
 
     mlag_l3_interface_inc_cnt(L3_INTERFACE_PEER_ENABLE_EVENTS_RCVD);
@@ -523,7 +529,7 @@ mlag_l3_interface_master_logic_peer_enable(struct peer_state_change_data *data)
      * For each vlan calculate global state and if changed send
      * MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT to all peers
      */
-    for (i=1, j=0; i < VLAN_N_VID; i++) {
+    for (i = 1, j = 0; i < VLAN_N_VID; i++) {
         mlag_l3_interface_master_logic_calc_global_state(
             i, &is_global_vlan_state_changed);
 
@@ -552,8 +558,8 @@ mlag_l3_interface_master_logic_peer_enable(struct peer_state_change_data *data)
                     MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT,
                     &vlan_state_change_event, ev_len, i, MASTER_LOGIC);
                 MLAG_BAIL_ERROR_MSG(err,
-                		"Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
-                		err);
+                                    "Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
+                                    err);
             }
         }
     }
@@ -622,8 +628,8 @@ mlag_l3_interface_master_logic_peer_status_change(
                     MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT,
                     &vlan_state_change_event, ev_len, i, MASTER_LOGIC);
                 MLAG_BAIL_ERROR_MSG(err,
-                		"Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
-                		err);
+                                    "Failed in sending MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT, err %d\n",
+                                    err);
             }
         }
     }

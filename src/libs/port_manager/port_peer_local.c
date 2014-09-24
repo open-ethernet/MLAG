@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -670,7 +670,7 @@ local_fault_entry_func(port_peer_local *fsm, struct fsm_event_base *ev)
         MLAG_BAIL_ERROR_MSG(err, "Failed in getting redirect IPL id\n");
     }
 
-    MLAG_LOG(MLAG_LOG_DEBUG,
+    MLAG_LOG(MLAG_LOG_NOTICE,
              "Activate redirect port [%lu] to ipl [%u] ipl id [%lu]\n",
              fsm->port_id, ipl_id, ipl_port_id);
 
@@ -700,7 +700,7 @@ local_fault_exit_func(port_peer_local *fsm, struct fsm_event_base *ev)
 
     UNUSED_PARAM(ev);
 
-    MLAG_LOG(MLAG_LOG_DEBUG, "Remove redirect port [%lu]\n", fsm->port_id);
+    MLAG_LOG(MLAG_LOG_NOTICE, "Remove redirect port [%lu]\n", fsm->port_id);
 
     err = mlag_topology_redirect_ipl_id_get(&ipl_id, &ipl_port_id);
     if (err == -EINVAL) {

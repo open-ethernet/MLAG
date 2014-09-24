@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_MAC_SYNC_PEER_MANAGER_H_
 #define MLAG_MAC_SYNC_PEER_MANAGER_H_
@@ -158,7 +158,7 @@ int mlag_mac_sync_peer_mngr_get_status(void);
  *
  * @return 0 when successful, otherwise ERROR
  */
-int mlag_mac_sync_peer_mngr_print(void (*dump_cb)(const char *,...));
+int mlag_mac_sync_peer_mngr_print(void (*dump_cb)(const char *, ...));
 
 /**
  *  This function deletes STATIC mac on IPL from FDB
@@ -280,9 +280,7 @@ mlag_mac_sync_peer_mngr_check_need_flush(   void *fltr, int *need_flush);
  */
 
 int mlag_mac_sync_peer_mngr_sync_router_mac(
-		                struct ether_addr  mac,
-                        unsigned short     vid,
-                        int add);
+    struct ether_addr mac, unsigned short vid, int add);
 
 /**
  *  This function corrects port on transmitted Local learn message.

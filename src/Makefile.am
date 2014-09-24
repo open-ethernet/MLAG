@@ -30,9 +30,11 @@ mlag_LDADD = 	-Llibs/mlag_manager/.libs/ -lmlagmgr \
 		-Llibs/mlag_l3_interface_manager/.libs/ -ll3interface \
 		-Llibs/mlag_internal_api/.libs/ -lmlaginternalapi \
 		-L$(SL_LIB_PATH_FULL_PREFIX) -l${SL_LIB_NAME_FULL_PREFIX} \
+		-L$(NL_LIB_PATH_FULL_PREFIX) -l${NL_LIB_NAME_FULL_PREFIX} \
 		-Llibs/mlag_topology/.libs/ -lmlagtopo \
 		-Llibs/mlag_common/.libs/ -lmlagcommon \
 		-Llibs/port_manager/.libs/ -lmlagportmgr \
+		-Llibs/lacp_manager/.libs/ -lmlaglacpmgr \
 		$(EXTRA_MLAG_LDADD) \
 		-ldl
 

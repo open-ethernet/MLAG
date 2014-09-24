@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #define PORT_MANAGER_C_
 #include <sys/types.h>
@@ -170,7 +170,7 @@ static void
 ports_local_fsm_user_trace(char *buf, int len)
 {
     UNUSED_PARAM(len);
-    MLAG_LOG(MLAG_LOG_NOTICE, "local %s\n", buf);
+    MLAG_LOG(MLAG_LOG_INFO, "local %s\n", buf);
 }
 
 /*
@@ -185,7 +185,7 @@ static void
 ports_remote_fsm_user_trace(char *buf, int len)
 {
     UNUSED_PARAM(len);
-    MLAG_LOG(MLAG_LOG_NOTICE, "remote %s\n", buf);
+    MLAG_LOG(MLAG_LOG_INFO, "remote %s\n", buf);
 }
 
 /*
@@ -200,7 +200,7 @@ static void
 ports_master_fsm_user_trace(char *buf, int len)
 {
     UNUSED_PARAM(len);
-    MLAG_LOG(MLAG_LOG_NOTICE, "master %s\n", buf);
+    MLAG_LOG(MLAG_LOG_INFO, "master %s\n", buf);
 }
 
 /*
@@ -360,7 +360,7 @@ rcv_msg_handler(uint8_t *data)
         goto bail;
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "port manager rcv_msg_handler: opcode=%d\n", opcode);
 
     port_db_counters_inc(PM_CNT_PROTOCOL_RX);
@@ -413,7 +413,8 @@ rcv_msg_handler(uint8_t *data)
                     port_manager_peer_port_down(local_peer_index,
                                                 oper_sync->port_id[idx]);
             }
-            MLAG_BAIL_ERROR_MSG(err, "Failed handling port [%lu] state update\n",
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed handling port [%lu] state update\n",
                                 oper_sync->port_id[idx]);
         }
         break;
@@ -446,7 +447,7 @@ bail:
     return err;
 }
 
-/**
+/*
  *  Convert struct between network and host order
  *
  * @param[in] data - struct body
@@ -475,7 +476,7 @@ net_order_port_global_state_event_data(
     }
 }
 
-/**
+/*
  *  Convert struct between network and host order
  *
  * @param[in] data - struct body
@@ -725,6 +726,7 @@ create_new_port(unsigned long port_id, struct mlag_port_data **port_info)
 
     err = port_db_entry_allocate(port_id, port_info);
     MLAG_BAIL_ERROR_MSG(err, "Failed to create port [%lu]\n", port_id);
+    (*port_info)->port_mode = MLAG_PORT_MODE_STATIC;
     (*port_info)->peers_conf_state = 0;
     (*port_info)->peers_oper_state = 0;
     err = port_peer_local_init(&((*port_info)->peer_local_fsm),
@@ -910,8 +912,9 @@ send_port_conf_sync_message(int current_peer_id, int dest_mlag_id)
 
     err = mlag_manager_db_mlag_id_from_local_index_get(current_peer_id,
                                                        &src_mlag_id);
-    MLAG_BAIL_ERROR_MSG(err, "Failed getting mlag id for peer local index [%d]\n",
-                    current_peer_id);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed getting mlag id for peer local index [%d]\n",
+                        current_peer_id);
     sync_message.mlag_id = src_mlag_id;
     sync_message.del_ports = FALSE;
     /* Send message to peer */
@@ -961,7 +964,8 @@ send_port_oper_sync_message(int current_peer_id, int dest_mlag_id)
 
     err = mlag_manager_db_mlag_id_from_local_index_get(current_peer_id,
                                                        &src_mlag_id);
-    MLAG_BAIL_ERROR_MSG(err, "Failed getting mlag id for peer local index [%d]\n",
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed getting mlag id for peer local index [%d]\n",
                         current_peer_id);
     oper_sync.mlag_id = src_mlag_id;
 
@@ -1025,7 +1029,8 @@ port_manager_port_sync(struct peer_port_sync_message *port_sync)
 
         err = mlag_manager_db_local_index_from_mlag_id_get(port_sync->mlag_id,
                                                            &peer_local_id);
-        MLAG_BAIL_ERROR_MSG(err, "Failed getting peer local index from mlag id [%d]\n",
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed getting peer local index from mlag id [%d]\n",
                             port_sync->mlag_id);
 
         /* Send per local & per existing peer which is not the remote */
@@ -1353,7 +1358,7 @@ send_port_deleted_event(unsigned long port, int status)
     port_deleted.status = status;
 
     err = send_system_event(MLAG_PORT_DELETED_EVENT, &port_deleted,
-    		sizeof(port_deleted));
+                            sizeof(port_deleted));
     MLAG_BAIL_ERROR_MSG(err, "Failed in sending port deleted event\n");
 
 bail:
@@ -1379,7 +1384,7 @@ port_manager_mlag_port_delete(unsigned long mlag_port)
     struct mlag_master_election_status me_status;
 
     MLAG_LOG(MLAG_LOG_NOTICE,
-    		"Delete port [%lu] procedure started\n", mlag_port);
+             "Delete port [%lu] procedure started\n", mlag_port);
 
     err = port_db_entry_lock(mlag_port, &port_info);
     if (err == -ENOENT) {
@@ -1391,7 +1396,7 @@ port_manager_mlag_port_delete(unsigned long mlag_port)
         goto bail;
     }
     MLAG_BAIL_ERROR_MSG(err, "Failed in getting port [%lu]\n",
-    		mlag_port);
+                        mlag_port);
 
     /* set conf state of the port */
     peer_id = mlag_manager_db_local_peer_id_get();
@@ -1403,7 +1408,7 @@ port_manager_mlag_port_delete(unsigned long mlag_port)
         port_db_entry_unlock(mlag_port);
         MLAG_BAIL_ERROR_MSG(err,
                             "Failed in port [%lu] delete to peer local FSM\n",
-                             mlag_port);
+                            mlag_port);
     }
     err = port_db_entry_unlock(mlag_port);
     MLAG_BAIL_ERROR_MSG(err,
@@ -1430,7 +1435,7 @@ port_manager_mlag_port_delete(unsigned long mlag_port)
     /* When no master logic present we need to delete ports ourselves */
     if ((started == FALSE) || (current_role == SLAVE)) {
         err = port_db_peer_conf_state_vector_get(mlag_port,
-        		&states);
+                                                 &states);
         MLAG_BAIL_ERROR_MSG(err,
                             "Failed to get peer conf state vector for port [%lu]\n",
                             mlag_port);
@@ -1444,14 +1449,14 @@ port_manager_mlag_port_delete(unsigned long mlag_port)
     }
 
 bail:
-    if(err) {
-	    port_delete_status = 0;
+    if (err) {
+        port_delete_status = 0;
     }
     MLAG_LOG(MLAG_LOG_NOTICE,
              "Sending port deleted event for port=%lu status=%d\n",
              mlag_port, port_delete_status);
     send_port_deleted_event(mlag_port, port_delete_status);
-	return err;
+    return err;
 }
 
 /**
@@ -1618,10 +1623,6 @@ port_manager_global_oper_state_set(unsigned long *mlag_ports, int *oper_states,
         goto bail;
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
-             "global oper port [%lu] state [%d]\n", mlag_ports[0],
-             oper_states[0]);
-
     for (i = 0; i < port_num; i++) {
         err = port_db_entry_lock(mlag_ports[i], &port_info);
         /* Ignore If port not found */
@@ -1635,6 +1636,8 @@ port_manager_global_oper_state_set(unsigned long *mlag_ports, int *oper_states,
         /* Update logic */
         switch (oper_states[i]) {
         case MLAG_PORT_GLOBAL_DISABLED:
+            MLAG_LOG(MLAG_LOG_NOTICE,
+                     "Port [%lu] global state is [Disabled]\n", mlag_ports[i]);
             err = port_admin_state_set(port_info, oper_states[i]);
             if (err) {
                 port_db_entry_unlock(mlag_ports[i]);
@@ -1644,6 +1647,8 @@ port_manager_global_oper_state_set(unsigned long *mlag_ports, int *oper_states,
             }
             break;
         case MLAG_PORT_GLOBAL_DOWN:
+            MLAG_LOG(MLAG_LOG_NOTICE,
+                     "Port [%lu] global state is [Down]\n", mlag_ports[i]);
             err = port_peer_local_port_global_down(&port_info->peer_local_fsm);
             if (err) {
                 port_db_entry_unlock(mlag_ports[i]);
@@ -1661,6 +1666,8 @@ port_manager_global_oper_state_set(unsigned long *mlag_ports, int *oper_states,
             }
             break;
         case MLAG_PORT_GLOBAL_ENABLED:
+            MLAG_LOG(MLAG_LOG_NOTICE,
+                     "Port [%lu] global state is [Enabled]\n", mlag_ports[i]);
             err = port_admin_state_set(port_info, oper_states[i]);
             if (err) {
                 port_db_entry_unlock(mlag_ports[i]);
@@ -1670,6 +1677,8 @@ port_manager_global_oper_state_set(unsigned long *mlag_ports, int *oper_states,
             }
             break;
         case MLAG_PORT_GLOBAL_UP:
+            MLAG_LOG(MLAG_LOG_NOTICE,
+                     "Port [%lu] global state is [Up]\n", mlag_ports[i]);
             err = port_peer_local_port_global_up(&port_info->peer_local_fsm);
             if (err) {
                 port_db_entry_unlock(mlag_ports[i]);
@@ -1756,7 +1765,9 @@ port_manager_local_port_up(unsigned long mlag_port)
     struct port_oper_state_change_data chg_event;
     struct mlag_master_election_status me_status;
 
-    ASSERT(started == TRUE);
+    if (started == FALSE) {
+        goto bail;
+    }
 
     MLAG_LOG(MLAG_LOG_DEBUG, "port [%lu] local state up\n", mlag_port);
 
@@ -1885,14 +1896,18 @@ port_manager_peer_oper_state_change(
                         oper_chg->mlag_id);
 
     if (oper_chg->state == MLAG_PORT_OPER_UP) {
+        MLAG_LOG(MLAG_LOG_NOTICE, " Peer port [%lu] oper change to [Up]\n",
+                 oper_chg->port_id);
         err = port_manager_peer_port_up(local_peer_index, oper_chg->port_id);
     }
     else {
+        MLAG_LOG(MLAG_LOG_NOTICE, " Peer port [%lu] oper change to [Down]\n",
+                 oper_chg->port_id);
         err =
             port_manager_peer_port_down(local_peer_index, oper_chg->port_id);
     }
-    MLAG_BAIL_ERROR_MSG(err, "Failed handlin peer port [%lu] oper change",
-                    oper_chg->port_id);
+    MLAG_BAIL_ERROR_MSG(err, "Failed handling peer port [%lu] oper change",
+                        oper_chg->port_id);
 
 bail:
     return err;
@@ -1978,7 +1993,7 @@ bail:
 }
 
 /*
- *  This function handles regular role change in which ports are
+ *  This function handles start of port sync in which all ports are
  *  shutting down.
  *
  * @param[in] port_info - port info
@@ -1999,8 +2014,83 @@ port_shutdown(struct mlag_port_data *port_info, void *data)
 
     err = port_peer_local_port_global_dis(&port_info->peer_local_fsm);
     MLAG_BAIL_ERROR_MSG(err,
-                        "Failed in port [%lu] global disable\n",
+                        "Failed in port [%lu] toggle off\n",
                         port_info->port_id);
+
+bail:
+    return err;
+}
+
+/*
+ *  This function handles regular role change in which ports are
+ *  shutting down.
+ *
+ * @param[in] port_info - port info
+ * @param[in] data - additional data
+ *
+ * @return 0 if operation completes successfully.
+ */
+static int
+static_port_shutdown(struct mlag_port_data *port_info, void *data)
+{
+    int err = 0;
+    int peer_id;
+
+    UNUSED_PARAM(data);
+
+    peer_id = mlag_manager_db_local_peer_id_get();
+    port_peer_state_set(&(port_info->peers_oper_state), peer_id, FALSE);
+
+    if (port_info->port_mode == MLAG_PORT_MODE_STATIC) {
+        err = port_peer_local_port_global_dis(&port_info->peer_local_fsm);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in port [%lu] toggle off\n",
+                            port_info->port_id);
+    }
+
+bail:
+    return err;
+}
+
+/*
+ *  Handle LACP ports toggle when role change occurs
+ *
+ * @param[in] port_info - port info
+ * @param[in] data - additional data
+ *
+ * @return 0 if operation completes successfully.
+ */
+static int
+lacp_port_toggle(struct mlag_port_data *port_info, void *data)
+{
+    int err = 0;
+    int peer_id;
+
+    UNUSED_PARAM(data);
+
+    peer_id = mlag_manager_db_local_peer_id_get();
+    port_peer_state_set(&(port_info->peers_oper_state), peer_id, FALSE);
+
+    if (port_info->port_mode == MLAG_PORT_MODE_LACP) {
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "lacp port [%lu] toggling\n", port_info->port_id);
+
+        err = port_peer_local_port_global_dis(&port_info->peer_local_fsm);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in port [%lu] toggle off\n",
+                            port_info->port_id);
+
+        /* Toggle all local ports */
+        err = port_peer_local_port_global_en(&port_info->peer_local_fsm);
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed in port [%lu] toggle on\n",
+                            port_info->port_id);
+    }
+    else {
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "port [%lu] is not in lacp mode, it's mode is %d\n",
+                 port_info->port_id, port_info->port_mode);
+    }
 
 bail:
     return err;
@@ -2104,8 +2194,27 @@ handle_split_brain()
     in_split_brain = TRUE;
 
     MLAG_LOG(MLAG_LOG_NOTICE, "Split brain detected - shutdown ports\n");
-    err = port_db_foreach(port_shutdown, NULL);
+    err = port_db_foreach(static_port_shutdown, NULL);
     MLAG_BAIL_ERROR_MSG(err, "Failed in split brain port shutdown\n");
+
+bail:
+    return err;
+}
+
+/*
+ *  This function handles sync start. it closes all ports
+ *
+ *
+ * @return 0 if operation completes successfully.
+ */
+static int
+disable_ports_sync_start()
+{
+    int err = 0;
+
+    MLAG_LOG(MLAG_LOG_NOTICE, "Sync start - shutdown ports\n");
+    err = port_db_foreach(port_shutdown, NULL);
+    MLAG_BAIL_ERROR_MSG(err, "Failed in sync start port shutdown\n");
 
 bail:
     return err;
@@ -2150,11 +2259,15 @@ port_manager_peer_state_change(struct peer_state_change_data *state_change)
             MLAG_BAIL_ERROR_MSG(err, "Failed in split brain handling\n");
         }
     }
+    if ((current_role == SLAVE) &&
+        (state_change->state == HEALTH_PEER_DOWN_WAIT)) {
+        err = port_db_foreach(lacp_port_toggle, NULL);
+        MLAG_BAIL_ERROR_MSG(err, "Failed in lacp ports state toggle\n");
+    }
 
 bail:
     return err;
 }
-
 
 /**
  *  This function handles peer enable notification.Peer enable
@@ -2181,7 +2294,8 @@ port_manager_peer_enable(int mlag_peer_id)
 
     /* use local index of peers */
     err = mlag_manager_db_local_index_from_mlag_id_get(mlag_peer_id, &peer_id);
-    MLAG_BAIL_ERROR_MSG(err, "Failed getting peer local index from mlag id [%d]",
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed getting peer local index from mlag id [%d]",
                         mlag_peer_id);
 
     err = port_db_peer_state_set(peer_id, PM_PEER_ENABLED);
@@ -2215,6 +2329,12 @@ port_manager_peer_start(int mlag_peer_id)
 
     if (started == FALSE) {
         goto bail;
+    }
+
+    /* make sure ports are down when slave starts sync */
+    if (current_role == SLAVE) {
+        err = disable_ports_sync_start();
+        MLAG_BAIL_ERROR_MSG(err, "Failed in disabling ports before sync\n");
     }
 
     /* use local index of peers */
@@ -2256,7 +2376,7 @@ bail:
  *  This function handles local peer role change.
  *  port manager enables global FSMs according to role
  *
- * @param[in] current_role - current role of local peer
+ * @param[in] new_role - current role of local peer
  *
  * @return 0 if operation completes successfully.
  */
@@ -2283,6 +2403,9 @@ port_manager_role_change(int new_role)
         /* Clear all peers */
         err = port_db_foreach(port_standalone_handle, NULL);
         MLAG_BAIL_ERROR_MSG(err, "Failed in port standalone handle\n");
+
+        err = port_db_foreach(lacp_port_toggle, NULL);
+        MLAG_BAIL_ERROR_MSG(err, "Failed in lacp ports state toggle\n");
     }
     else {
         err = port_manager_stop();
@@ -2574,11 +2697,12 @@ dump_ports_info(struct mlag_port_data *port_info, void *data)
 {
     int err = 0;
     void (*dump_cb)(const char *, ...) = data;
+    static char *port_modes_str[] = { "Static", "LACP"};
 
     ASSERT(port_info != NULL);
 
-    DUMP_OR_LOG("Port ID [%lu] [0x%lx]\n", port_info->port_id,
-                port_info->port_id);
+    DUMP_OR_LOG("Port ID [%lu] [0x%lx] Type [%s]\n", port_info->port_id,
+                port_info->port_id, port_modes_str[port_info->port_mode]);
     DUMP_OR_LOG("===========================\n");
     DUMP_OR_LOG("peers_conf state [0x%x] peers_state [0x%x]\n",
                 port_info->peers_conf_state, port_info->peers_oper_state);
@@ -2635,3 +2759,79 @@ bail:
     return err;
 }
 
+/**
+ *  This function sets port mode, either static LAG or LACP LAG
+ *
+ * @param[in] port_id - mlag port id
+ * @param[in] port_mode - static or LACP LAG
+ *
+ * @return 0 if operation completes successfully.
+ */
+int
+port_manager_port_mode_set(unsigned long port_id,
+                           enum mlag_port_mode port_mode)
+{
+    int err = 0;
+    struct mlag_port_data *port_info;
+
+    err = port_db_entry_lock(port_id, &port_info);
+    MLAG_BAIL_ERROR_MSG(err, "port [%lu] not found\n", port_id);
+
+    port_info->port_mode = port_mode;
+
+    err = port_db_entry_unlock(port_id);
+    MLAG_BAIL_ERROR_MSG(err, "Error in port DB unlock\n");
+
+bail:
+    return err;
+}
+
+/**
+ *  This function gets port mode, either static LAG or LACP LAG
+ *
+ * @param[in] port_id - mlag port id
+ * @param[out] port_mode - static or LACP LAG
+ *
+ * @return 0 if operation completes successfully.
+ */
+int
+port_manager_port_mode_get(unsigned long port_id,
+                           enum mlag_port_mode *port_mode)
+{
+    int err = 0;
+    struct mlag_port_data *port_info;
+
+    ASSERT(port_mode != NULL);
+
+    err = port_db_entry_lock(port_id, &port_info);
+    MLAG_BAIL_ERROR_MSG(err, "port [%lu] not found\n", port_id);
+
+    *port_mode = port_info->port_mode;
+
+    err = port_db_entry_unlock(port_id);
+    MLAG_BAIL_ERROR_MSG(err, "Error in port DB unlock\n");
+
+bail:
+    return err;
+}
+
+/**
+ *  This function handles LACP system id change in Slave
+ *
+ * @return 0 if operation completes successfully.
+ */
+int
+port_manager_lacp_sys_id_update_handle(uint8_t *data)
+{
+    int err = 0;
+    UNUSED_PARAM(data);
+
+    MLAG_LOG(MLAG_LOG_NOTICE,
+             "got lacp sync id update, toggle all mlag lacp ports\n");
+
+    err = port_db_foreach(lacp_port_toggle, NULL);
+    MLAG_BAIL_ERROR_MSG(err, "Failed in lacp ports state toggle\n");
+
+bail:
+    return err;
+}

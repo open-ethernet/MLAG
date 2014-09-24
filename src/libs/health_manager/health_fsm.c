@@ -33,7 +33,14 @@
 #include <oes_types.h>
 #include "health_manager.h"
 #include "health_fsm.h"
+#include <libs/mlag_manager/mlag_manager_db.h>
+#include <utils/mlag_log.h>
 
+
+
+
+#undef  __MODULE__
+#define __MODULE__ MLAG_HEALTH_FSM
 /************************************************
  *  Local Defines
  ***********************************************/
@@ -823,8 +830,9 @@ peer_down_entry_func(health_fsm *fsm, struct fsm_event_base *event)
     int err = 0;
     UNUSED_PARAM(event);
     if (fsm->notify_state_cb) {
-        fsm->notify_state_cb(fsm->peer_id, HEALTH_PEER_DOWN);
-    }
+            fsm->notify_state_cb(fsm->peer_id, HEALTH_PEER_DOWN);
+    	}
+
     return err;
 }
 

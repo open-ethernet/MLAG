@@ -23,10 +23,11 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <stdlib.h>
 #include <complib/sx_rpc.h>
+#include <complib/cl_mem.h>
 #include "mlag_api.h"
 #include "mlag_bail.h"
 #include "mlag_api_rpc.h"
@@ -389,7 +390,7 @@ mlag_api_ports_state_change_notify(const struct port_state_info *ports_arr,
     size = sizeof(struct mlag_api_ports_state_change_notify_params) +
            ports_arr_cnt * sizeof(struct port_state_info);
     cmd_body =
-        (struct mlag_api_ports_state_change_notify_params *)malloc(size);
+        (struct mlag_api_ports_state_change_notify_params *)cl_malloc(size);
     if (cmd_body == NULL) {
         MLAG_LOG(MLAG_LOG_ERROR,
                  "Failed to allocate cmd_body memory\n");
@@ -409,7 +410,7 @@ mlag_api_ports_state_change_notify(const struct port_state_info *ports_arr,
 
 bail:
     if (cmd_body) {
-        free(cmd_body);
+        cl_free(cmd_body);
     }
     return err;
 }
@@ -453,7 +454,7 @@ mlag_api_vlans_state_change_notify(const struct vlan_state_info *vlans_arr,
     size = sizeof(struct mlag_api_vlans_state_change_notify_params) +
            vlans_arr_cnt * sizeof(struct vlan_state_info);
     cmd_body =
-        (struct mlag_api_vlans_state_change_notify_params *)malloc(size);
+        (struct mlag_api_vlans_state_change_notify_params *)cl_malloc(size);
     if (cmd_body == NULL) {
         MLAG_LOG(MLAG_LOG_ERROR,
                  "Failed to allocate cmd_body memory\n");
@@ -473,7 +474,7 @@ mlag_api_vlans_state_change_notify(const struct vlan_state_info *vlans_arr,
 
 bail:
     if (cmd_body) {
-        free(cmd_body);
+        cl_free(cmd_body);
     }
     return err;
 }
@@ -581,7 +582,7 @@ mlag_api_ports_state_get(struct mlag_port_info *mlag_ports_information,
 
     size = sizeof(struct mlag_api_ports_state_get_params) +
            *mlag_ports_cnt * sizeof(struct mlag_port_info);
-    cmd_body = (struct mlag_api_ports_state_get_params *)malloc(size);
+    cmd_body = (struct mlag_api_ports_state_get_params *)cl_malloc(size);
     if (cmd_body == NULL) {
         MLAG_LOG(MLAG_LOG_ERROR,
                  "Failed to allocate cmd_body memory\n");
@@ -604,7 +605,7 @@ mlag_api_ports_state_get(struct mlag_port_info *mlag_ports_information,
 
 bail:
     if (cmd_body) {
-        free(cmd_body);
+        cl_free(cmd_body);
     }
     return err;
 }
@@ -656,7 +657,7 @@ bail:
  * Populates protocol_oper_state with the current protocol operational state.
  * This function works synchronously and blocks until the operation is completed.
  *
- * @param[out] protocol_oper_state - Protocol operational state. Pointer to an already allocated 
+ * @param[out] protocol_oper_state - Protocol operational state. Pointer to an already allocated
  *                                   memory structure.
  *
  * @return 0 - Operation completed successfully.
@@ -961,7 +962,7 @@ bail:
 }
 
 /**
- * Populates sec with the current duration of the interval during which keep-alive  
+ * Populates sec with the current duration of the interval during which keep-alive
  * messages are issued.
  * This function works synchronously and blocks until the operation is completed.
  *
@@ -1120,7 +1121,7 @@ mlag_api_ipl_ids_get(unsigned int *ipl_ids,
 
     size = sizeof(struct mlag_api_ipl_ids_get_params) + *ipl_ids_cnt *
            sizeof(unsigned int);
-    cmd_body = (struct mlag_api_ipl_ids_get_params *)malloc(size);
+    cmd_body = (struct mlag_api_ipl_ids_get_params *)cl_malloc(size);
 
     if (cmd_body == NULL) {
         MLAG_LOG(MLAG_LOG_ERROR,
@@ -1142,7 +1143,7 @@ mlag_api_ipl_ids_get(unsigned int *ipl_ids,
 
 bail:
     if (cmd_body) {
-        free(cmd_body);
+        cl_free(cmd_body);
     }
     return err;
 }
@@ -1724,7 +1725,7 @@ mlag_api_fdb_uc_mac_addr_get(const enum access_cmd access_cmd,
 
     size = sizeof(struct mlag_api_fdb_uc_mac_addr_get_params) +
            *data_cnt * sizeof(struct fdb_uc_mac_addr_params);
-    cmd_body = (struct mlag_api_fdb_uc_mac_addr_get_params *)malloc(size);
+    cmd_body = (struct mlag_api_fdb_uc_mac_addr_get_params *)cl_malloc(size);
     if (cmd_body == NULL) {
         MLAG_LOG(MLAG_LOG_ERROR,
                  "Failed to allocate cmd_body memory\n");
@@ -1750,7 +1751,7 @@ mlag_api_fdb_uc_mac_addr_get(const enum access_cmd access_cmd,
 
 bail:
     if (cmd_body) {
-        free(cmd_body);
+        cl_free(cmd_body);
     }
     return err;
 }
@@ -1941,7 +1942,7 @@ mlag_api_router_mac_set(const enum access_cmd access_cmd,
     size = sizeof(struct mlag_api_router_mac_set_params) +
            router_macs_list_cnt * sizeof(struct router_mac);
 
-    cmd_body = (struct mlag_api_router_mac_set_params *)malloc(size);
+    cmd_body = (struct mlag_api_router_mac_set_params *)cl_malloc(size);
     if (cmd_body == NULL) {
         MLAG_LOG(MLAG_LOG_ERROR,
                  "Failed to allocate cmd_body memory\n");
@@ -1961,8 +1962,216 @@ mlag_api_router_mac_set(const enum access_cmd access_cmd,
 
 bail:
     if (cmd_body) {
-        free(cmd_body);
+        cl_free(cmd_body);
     }
 
     return err;
 }
+
+
+/**
+ * Sets MLAG port mode. Port mode can be either static or dynamic LAG.
+ * This function works asynchronously. After verifying its arguments are valid,
+ * it queues the operation and returns immediately.
+ *
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[in] port_mode - MLAG port mode of operation.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_port_mode_set(const unsigned long port_id,
+                       const enum mlag_port_mode port_mode)
+{
+    int err = 0;
+    struct mlag_api_port_mode_params cmd_body;
+
+    /* validate parameters */
+    MLAG_BAIL_CHECK(port_mode < MLAG_PORT_MODE_LAST, -EINVAL);
+
+    MLAG_LOG(MLAG_LOG_DEBUG, "port ID [%lu] set to mode [%u]\n", port_id,
+             port_mode);
+
+    cmd_body.port_id = port_id;
+    cmd_body.port_mode = port_mode;
+
+    err = mlag_api_send_command_wrapper(MLAG_INTERNAL_API_CMD_PORT_MODE_SET,
+                                        (uint8_t*)&cmd_body,
+                                        sizeof(cmd_body),
+                                        NA);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Returns the current MLAG port mode.
+ *
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[out] port_mode - MLAG port mode of operation.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_port_mode_get(const unsigned long port_id,
+                       enum mlag_port_mode *port_mode)
+{
+    int err = 0;
+    struct mlag_api_port_mode_params cmd_body;
+    /* validate parameters */
+    MLAG_BAIL_CHECK(port_mode != NULL, -EINVAL);
+
+    MLAG_LOG(MLAG_LOG_DEBUG, "get port mode port ID [%lu]\n", port_id);
+
+    cmd_body.port_id = port_id;
+    err = mlag_api_send_command_wrapper(MLAG_INTERNAL_API_CMD_PORT_MODE_GET,
+                                        (uint8_t*) &cmd_body, sizeof(cmd_body),
+                                        sizeof(cmd_body));
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    *port_mode = cmd_body.port_mode;
+
+bail:
+    return err;
+}
+
+/**
+ * Triggers a selection query to the MLAG module.
+ * Since MLAG is distributed, this request may involve a remote peer, so
+ * this function works asynchronously. The response for this request is
+ * guaranteed and it is issued as a notification when the response is available.
+ * When a delete command is used, only port_id parameter is relevant.
+ * Force option is relevant for ADD command and is given in order to allow
+ * releasing currently used key and migrating to the given partner. Force
+ * is not yet supported, and should be set to 0.
+ *
+ *
+ * @param[in] access_cmd - ADD/DELETE.
+ * @param[in] request_id - index given by caller that will appear in reply
+ * @param[in] port_id - Interface index of port. Must represent MLAG port.
+ * @param[in] partner_sys_id - partner ID (taken from LACP PDU)
+ * @param[in] partner_key - partner operational Key (taken from LACP PDU)
+ * @param[in] force - force partner to be selected (will release partner in use)
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_lacp_selection_request(const enum access_cmd access_cmd,
+                                const unsigned int request_id,
+                                const unsigned long port_id,
+                                const unsigned long long partner_sys_id,
+                                const unsigned int partner_key,
+                                const unsigned char force)
+{
+    int err = 0;
+    struct mlag_api_lacp_selection_request_params cmd_body;
+    /* validate parameters */
+    MLAG_BAIL_CHECK((access_cmd == ACCESS_CMD_ADD) ||
+                    (access_cmd == ACCESS_CMD_DELETE), -EINVAL);
+
+    MLAG_BAIL_CHECK(force == 0, -EINVAL);
+
+    MLAG_LOG(MLAG_LOG_DEBUG,
+             "lacp selection request cmd [%s] req_id [%u] port [%lu] sys_id [%llu] key [%u] force [%u]\n",
+             ACCESS_COMMAND_STR(access_cmd), request_id, port_id,
+             partner_sys_id, partner_key, force);
+
+    cmd_body.access_cmd = access_cmd;
+    cmd_body.request_id = request_id;
+    cmd_body.port_id = port_id;
+    cmd_body.partner_sys_id = partner_sys_id;
+    cmd_body.partner_key = partner_key;
+    cmd_body.force = force;
+
+    err = mlag_api_send_command_wrapper(
+        MLAG_INTERNAL_API_CMD_LACP_SELECT_REQUEST,
+        (uint8_t*)&cmd_body,
+        sizeof(cmd_body),
+        NA);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Sets the local system ID for LACP PDUs. This API should be called before
+ * starting mlag protocol when LACP is enabled.
+ * This function works asynchronously.
+ *
+ * @param[in] local_sys_id - local sys ID (for LACP PDU)
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_lacp_local_sys_id_set(const unsigned long long local_sys_id)
+{
+    int err = 0;
+    struct mlag_api_lacp_actor_params cmd_body;
+
+    MLAG_LOG(MLAG_LOG_DEBUG,
+             "local system ID set to [%llu] \n", local_sys_id);
+
+    cmd_body.system_id = local_sys_id;
+    err = mlag_api_send_command_wrapper(MLAG_INTERNAL_API_CMD_LACP_SYS_ID_SET,
+                                        (uint8_t*) &cmd_body, sizeof(cmd_body),
+                                        NA);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+bail:
+    return err;
+}
+
+/**
+ * Gets actor attributes. The actor attributes are
+ * system ID to be used in the LACP PDU and a chassis ID
+ * which is an index of this node within the MLAG
+ * cluster, with a value in the range of 0..15
+ *
+ * @param[out] actor_sys_id - actor sys ID (for LACP PDU)
+ * @param[out] chassis_id - MLAG cluster chassis ID, range 0..15
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_api_lacp_actor_parameters_get(unsigned long long *actor_sys_id,
+                                   unsigned int *chassis_id)
+{
+    int err = 0;
+    struct mlag_api_lacp_actor_params cmd_body;
+    /* validate parameters */
+    MLAG_BAIL_CHECK(actor_sys_id != NULL, -EINVAL);
+    MLAG_BAIL_CHECK(chassis_id != NULL, -EINVAL);
+
+    MLAG_LOG(MLAG_LOG_DEBUG, "lacp actor parameters get\n");
+
+    err = mlag_api_send_command_wrapper(
+        MLAG_INTERNAL_API_CMD_LACP_ACTOR_PARAMS_GET,
+        (uint8_t*) &cmd_body, sizeof(cmd_body),
+        sizeof(cmd_body));
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    *actor_sys_id = cmd_body.system_id;
+    *chassis_id = cmd_body.chassis_id;
+
+bail:
+    return err;
+}
+
+

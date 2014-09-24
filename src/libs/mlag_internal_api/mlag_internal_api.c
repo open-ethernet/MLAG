@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <unistd.h>
 #include <complib/sx_rpc.h>
@@ -155,6 +155,16 @@ sx_rpc_api_command_t mlag_api_command_id[] = {
       mlag_internal_api_ipl_ip_get, SX_RPC_API_CMD_PRIO_HIGH },
     { COMMAND_ID_REPLICA(MLAG_INTERNAL_API_CMD_ROUTER_MAC_SET),
       mlag_internal_api_router_mac_set, SX_RPC_API_CMD_PRIO_HIGH },
+    { COMMAND_ID_REPLICA(MLAG_INTERNAL_API_CMD_PORT_MODE_SET),
+      mlag_internal_api_port_mode_set, SX_RPC_API_CMD_PRIO_HIGH },
+    { COMMAND_ID_REPLICA(MLAG_INTERNAL_API_CMD_PORT_MODE_GET),
+      mlag_internal_api_port_mode_get, SX_RPC_API_CMD_PRIO_HIGH },
+    { COMMAND_ID_REPLICA(MLAG_INTERNAL_API_CMD_LACP_SYS_ID_SET),
+      mlag_internal_api_lacp_local_sys_id_set, SX_RPC_API_CMD_PRIO_HIGH },
+    { COMMAND_ID_REPLICA(MLAG_INTERNAL_API_CMD_LACP_ACTOR_PARAMS_GET),
+      mlag_internal_api_lacp_actor_parameters_get, SX_RPC_API_CMD_PRIO_HIGH },
+    { COMMAND_ID_REPLICA(MLAG_INTERNAL_API_CMD_LACP_SELECT_REQUEST),
+      mlag_internal_api_lacp_selection_request, SX_RPC_API_CMD_PRIO_HIGH },
 };
 /************************************************
  *  Local variables
@@ -174,12 +184,12 @@ static const char *access_command_str[ACCESS_CMD_LAST] = {
  *  Local function declarations
  ***********************************************/
 /*
- * Convert mlag access cmd to oes.
- * This function works synchronously. It blocks until the operation is completed.
+ * Converts MLAG access cmd to OES.
+ * This function works synchronously and blocks until the operation is completed.
  *
  * @param[in] command - Access command.
  *
- * @return oes_access_cmd - Oes access command.
+ * @return oes_access_cmd - OES access command.
  */
 static enum oes_access_cmd
 convert_mlag_access_cmd_to_oes(enum access_cmd command)
@@ -213,14 +223,14 @@ convert_mlag_access_cmd_to_oes(enum access_cmd command)
 }
 
 /*
- * Check message size equal.
- * This function works synchronously. It blocks until the operation is completed.
+ * Checks that message size is equal to the provided parameters.
+ * This function works synchronously and blocks until the operation is completed.
  *
  * @param[in] rcv_len - Receive bytes.
  * @param[in] expected_len - Expected bytes.
  *
  * @return 0 - Operation completed successfully, equal size.
- * @return -EIO - Operation failure, not received the expected bytes.
+ * @return -EIO - Operation failure; expected bytes not received.
  */
 static int
 check_message_size_equal(unsigned int rcv_len,
@@ -240,14 +250,14 @@ check_message_size_equal(unsigned int rcv_len,
 }
 
 /*
- * Check message size less.
- * This function works synchronously. It blocks until the operation is completed.
+ * Checks that message size is less to the provided parameters.
+ * This function works synchronously and blocks until the operation is completed.
  *
  * @param[in] rcv_len - Receive bytes.
  * @param[in] expected_len - Expected bytes.
  *
  * @return 0 - Operation completed successfully, equal size.
- * @return -EIO - Operation failure, not received the expected bytes.
+ * @return -EIO - Operation failure; expected bytes not received.
  */
 static int
 check_message_size_less(unsigned int rcv_len,
@@ -271,8 +281,8 @@ check_message_size_less(unsigned int rcv_len,
  ***********************************************/
 
 /**
- * Initialize the RPC layer.
- * This function works synchronously. It blocks until the operation is completed.
+ * Initializes the RPC layer.
+ * This function works synchronously and blocks until the operation is completed.
  *
  * @param[in] log_cb - Logging callback.
  *
@@ -316,9 +326,9 @@ bail:
 }
 
 /**
- * De-Initialize the RPC layer.
- * Deinit is called when mlag process exits.
- * This function works synchronously. It get blocking until the operation finish.
+ * De-initializes the RPC layer.
+ * Deinit is called when MLAG process exits.
+ * This function works synchronously and blocks until the operation is completed.
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Operation failure.
@@ -344,7 +354,7 @@ bail:
 
 /**
  * Infinate loop. Wait on rpc_select_event.
- * This function works synchronously. It get blocking until the operation finish.
+ * This function works synchronously and blocks until the operation is completed.
  *
  * @return 0 - Operation completed successfully.
  */
@@ -361,21 +371,20 @@ mlag_rpc_start_loop(void)
 }
 
 /**
- * Notify on ports operational state changes.
+ * Notifies on-ports operational state changes.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ports_state_change_notify(uint8_t *rcv_msg_body,
@@ -417,25 +426,24 @@ bail:
 }
 
 /**
- * Notify on vlans state changes.
- * Invoke on all vlans.
- * Vlan is considered as up if one member port is up, excluding IPL.
- * Vlan considered as down if all the member ports of the vlan down, excluding IPL.
- * This function is temporary and on next release it will be considered as obsolete.
+ * Notifies on-VLAN state changes.
+ * Invoke on all VLANs.
+ * VLAN is considered as up if one member port is up, excluding IPL.
+ * VLAN is considered as down if all member ports of the VLAN are down, excluding IPL.
+ * This function is temporary and next release it becomes considered as obsolete.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_vlans_state_change_notify(uint8_t *rcv_msg_body,
@@ -477,21 +485,20 @@ bail:
 }
 
 /**
- * Notify on vlans state change sync done.
+ * Notifies on-VLAN state sync change.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_vlans_state_change_sync_finish_notify(uint8_t *rcv_msg_body,
@@ -517,22 +524,21 @@ bail:
 }
 
 /**
- * Notify on peer management connectivity state changes.
- * The system identification is referring to the peer.
+ * Notifies on-peer management connectivity state changes.
+ * The system identification refers to the peer.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_mgmt_peer_state_notify(uint8_t *rcv_msg_body,
@@ -564,20 +570,19 @@ bail:
 }
 
 /**
- * Get all the current mlag ports state information.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets all the current MLAG ports state information.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ports_state_get(uint8_t *rcv_msg_body,
@@ -616,20 +621,19 @@ bail:
 }
 
 /**
- * Populates mlag_port_information with the port information of the given port id.
- * This function works synchronously. It blocks until the operation is completed.
+ * Populates mlag_port_information with the port information of the given port ID.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_port_state_get(uint8_t *rcv_msg_body,
@@ -658,20 +662,19 @@ bail:
 }
 
 /**
- * Get the current protocol operational state.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets the current protocol operational state.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_protocol_oper_state_get(uint8_t *rcv_msg_body,
@@ -698,20 +701,19 @@ bail:
 }
 
 /**
- * Get the current system role state.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets the current system role state.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_system_role_state_get(uint8_t *rcv_msg_body,
@@ -738,20 +740,19 @@ bail:
 }
 
 /**
- * Get the current peers state.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets the current peers state.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_peers_state_list_get(uint8_t *rcv_msg_body,
@@ -781,20 +782,19 @@ bail:
 }
 
 /**
- * Get the current values of the corresponding mlag protocol counters.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets the current values of the corresponding MLAG protocol counters.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_counters_get(uint8_t *rcv_msg_body,
@@ -823,20 +823,19 @@ bail:
 }
 
 /**
- * Clear the mlag protocol counters.
- * This function works synchronously. It blocks until the operation is completed.
+ * Clears MLAG protocol counters.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_counters_clear(uint8_t *rcv_msg_body,
@@ -862,24 +861,23 @@ bail:
 }
 
 /**
- * Specifies the maximum period of time that mlag ports are disabled after restarting
+ * Specifies the maximum period of time that MLAG ports are disabled after restarting
  * the feature.
  * This interval allows the switch to learn the IPL topology to identify the
- * master and sync the mlag protocol information before opening the mlag ports.
+ * master and sync the MLAG protocol information before opening the MLAG ports.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_reload_delay_set(uint8_t *rcv_msg_body,
@@ -907,23 +905,22 @@ bail:
 }
 
 /**
- * Get the current value of the maximum period of time
- * that mlag ports are disabled after restarting the feature.
+ * Gets the current value of the maximum period of time that MLAG ports are
+ * disabled after restarting the feature.
  * This interval allows the switch to learn the IPL topology to identify the
- * master and sync the mlag protocol information before opening the mlag ports.
- * This function works synchronously. It blocks until the operation is completed.
+ * master and sync the MLAG protocol information before opening the MLAG ports.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_reload_delay_get(uint8_t *rcv_msg_body,
@@ -953,21 +950,20 @@ bail:
 }
 
 /**
- * Specifies the interval at which keep-alive messages are issued.
+ * Specifies the interval during which keep-alive messages are issued.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_keepalive_interval_set(uint8_t *rcv_msg_body,
@@ -996,19 +992,18 @@ bail:
 
 /**
  * Populates sec with the current value of the interval at which keep-alive messages are issued.
- * This function works synchronously. It blocks until the operation is completed.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_keepalive_interval_get(uint8_t *rcv_msg_body,
@@ -1038,21 +1033,20 @@ bail:
 }
 
 /**
- * Add/Delete mlag port.
+ * Adds/deletes MLAG port.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_port_set(uint8_t *rcv_msg_body,
@@ -1081,20 +1075,19 @@ bail:
 }
 
 /**
- * Create/Delete an IPL.
- * This function works synchronously. It blocks until the operation is completed.
+ * Creates/deletes an IPL.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ipl_set(uint8_t *rcv_msg_body,
@@ -1125,20 +1118,19 @@ bail:
 }
 
 /**
- * Get all the ipl ids that were created.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets all the IPL IDs that have been created.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ipl_ids_get(uint8_t *rcv_msg_body,
@@ -1174,21 +1166,20 @@ bail:
 }
 
 /**
- * Bind/Unbind port to an IPL.
+ * Binds/unbinds port to an IPL.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ipl_port_set(uint8_t *rcv_msg_body,
@@ -1222,20 +1213,19 @@ bail:
 }
 
 /**
- * Get the port id that were binded to the given ipl.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets the port ID that have been binded to the given IPL.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ipl_port_get(uint8_t *rcv_msg_body,
@@ -1267,23 +1257,22 @@ bail:
 }
 
 /**
- * Set/Unset the local and peer IP addresses for an IPL.
- * The IP is referring to the IPL interface vlan.
+ * Sets/unsets the local and peer IP addresses for an IPL.
+ * The IP is referring to the IPL interface VLAN.
  * The given IP addresses are ignored in the context of DELETE command.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  * @return -EAFNOSUPPORT- IPv6 currently not supported.
  */
 int
@@ -1337,20 +1326,19 @@ bail:
 }
 
 /**
- * Get the IP of the local/peer and vlan id based of the given ipl id.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets the IP of the local/peer and VLAN ID based of the given IPL ID.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_ipl_ip_get(uint8_t *rcv_msg_body,
@@ -1382,14 +1370,14 @@ bail:
 }
 
 /**
- * Enable the mlag protocol.
- * Start is called in order to enable the protocol. From this stage on, the protocol
+ * Enable the MLAG protocol.
+ * Start is called to enable the protocol. From this stage on the protocol
  * is running and thus exchanges messages with peers, triggers configuration toward
  * HAL (Hardware Abstraction Layer) and events toward the system.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
@@ -1397,8 +1385,7 @@ bail:
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_start(uint8_t *rcv_msg_body,
@@ -1426,13 +1413,13 @@ bail:
 }
 
 /**
- * Disable the mlag protocol.
- * Stop means stopping the mlag capability of the switch. No messages or
- * configurations should be sent from any mlag module after handling stop request.
+ * Disables the MLAG protocol.
+ * Stop means stopping the MLAG capability of the switch. No messages or
+ * configurations are sent from any MLAG module after handling stop request.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
@@ -1440,8 +1427,7 @@ bail:
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_stop(uint8_t *rcv_msg_body,
@@ -1467,17 +1453,17 @@ bail:
 }
 
 /**
- * Set module log verbosity level.
- * This function works synchronously. It blocks until the operation is completed.
+ * Sets module log verbosity level.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
  */
 int
@@ -1517,17 +1503,17 @@ bail:
 }
 
 /**
- * Get module log verbosity level.
- * This function works synchronously. It blocks until the operation is completed.
+ * Gets module log verbosity level.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
  */
 int
@@ -1562,22 +1548,21 @@ bail:
 }
 
 /**
- * Add/Delete UC MAC and UC LAG MAC entries in the FDB. Currently it support only static
- * mac insertion.
+ * Adds/deletes UC MAC and UC LAG MAC entries in the FDB. Currently it support only static
+ * MAC insertion.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_uc_mac_addr_set(uint8_t *rcv_msg_body,
@@ -1620,11 +1605,11 @@ bail:
 }
 
 /**
- * Flush the entire FDB table.
+ * Flushes the entire FDB table.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
@@ -1632,8 +1617,7 @@ bail:
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_uc_flush_set(uint8_t *rcv_msg_body,
@@ -1662,21 +1646,20 @@ bail:
 }
 
 /**
- * Flush all FDB table entries that were learned on the given port.
+ * Flushes all FDB table entries that have been learned on the given port.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_uc_flush_port_set(uint8_t *rcv_msg_body,
@@ -1706,21 +1689,20 @@ bail:
 }
 
 /**
- * Flush the FDB table entries that were learned on the given vlan id.
+ * Flushes the FDB table entries that have been learned on the given VLAN ID.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_uc_flush_vid_set(uint8_t *rcv_msg_body,
@@ -1755,21 +1737,20 @@ bail:
 }
 
 /**
- * Flush all FDB table entries that were learned on the given vlan id and port.
+ * Flushes all FDB table entries that have been learned on the given VLAN ID and port.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_uc_flush_port_vid_set(uint8_t *rcv_msg_body,
@@ -1807,21 +1788,20 @@ bail:
 }
 
 /**
- * Get MAC entries from the SW FDB table, which is exact copy of HW DB on any
+ * Gets MAC entries from the SW FDB table, which is an exact copy of HW DB on any
  * device.
- * This function works synchronously. It blocks until the operation is completed.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_uc_mac_addr_get(uint8_t *rcv_msg_body,
@@ -1878,20 +1858,19 @@ bail:
 }
 
 /**
- * Initialize the control learning library.
- * This function works synchronously. It blocks until the operation is completed.
+ * Initializes the control learning library.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_init(uint8_t *rcv_msg_body,
@@ -1920,10 +1899,10 @@ bail:
 }
 
 /**
- * De-Initialize the control learning library.
- * This function works synchronously. It blocks until the operation is completed.
+ * De-initializes the control learning library.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
@@ -1931,8 +1910,7 @@ bail:
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_deinit(uint8_t *rcv_msg_body,
@@ -1945,7 +1923,6 @@ mlag_internal_api_fdb_deinit(uint8_t *rcv_msg_body,
 
     err = check_message_size_equal(rcv_len, sizeof(unsigned int));
     MLAG_BAIL_ERROR(err);
-
 
     MLAG_LOG(MLAG_LOG_DEBUG, "De-Initialize the control learning library\n");
 
@@ -1962,10 +1939,10 @@ bail:
 }
 
 /**
- * Start the control learning library. It start listening to FDB events.
- * This function works synchronously. It blocks until the operation is completed.
+ * Starts the control learning library and listens to FDB events.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
@@ -1973,8 +1950,7 @@ bail:
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_start(uint8_t *rcv_msg_body,
@@ -2003,10 +1979,10 @@ bail:
 }
 
 /**
- * Stop control learning functionality.
- * This function works synchronously. It blocks until the operation is completed.
+ * Stops control learning functionality.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
@@ -2014,8 +1990,7 @@ bail:
  *
  * @return 0 - Operation completed successfully.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_fdb_stop(uint8_t *rcv_msg_body,
@@ -2044,20 +2019,19 @@ bail:
 }
 
 /**
- * Generate mlag system dump.
- * This function works synchronously. It blocks until the operation is completed.
+ * Generates MLAG system dump.
+ * This function works synchronously and blocks until the operation is completed.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_dump(uint8_t *rcv_msg_body,
@@ -2089,21 +2063,20 @@ bail:
 }
 
 /**
- * Sets router mac.
+ * Sets router MAC.
  * This function works asynchronously. After verifying its arguments are valid,
  * it queues the operation and returns immediately.
  *
- * @param[in] rcv_msg_body - Contain the necessary parameters.
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
  *                           Pointer to an already allocated memory structure.
  * @param[in] rcv_len - Receive bytes.
  * @param[out] snd_body - Response content.
  * @param[out] snd_len - Response size.
  *
  * @return 0 - Operation completed successfully.
- * @return -EINVAL - If any input parameter is invalid.
+ * @return -EINVAL - If an input parameter is invalid.
  * @return -EIO - Network problem or operation dispatch failure.
- * @return -EPERM - Operation not permitted - pre-condition failed - Initialize the
- *                  mlag protocol first.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
  */
 int
 mlag_internal_api_router_mac_set(uint8_t *rcv_msg_body,
@@ -2143,3 +2116,208 @@ mlag_internal_api_router_mac_set(uint8_t *rcv_msg_body,
 bail:
     return err;
 }
+
+/**
+ * Sets port mode.
+ * This function works asynchronously. After verifying its arguments are valid,
+ * it queues the operation and returns immediately.
+ *
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
+ *                           Pointer to an already allocated memory structure.
+ * @param[in] rcv_len - Receive bytes.
+ * @param[out] snd_body - Response content.
+ * @param[out] snd_len - Response size.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_internal_api_port_mode_set(uint8_t *rcv_msg_body, uint32_t rcv_len,
+                                uint8_t **snd_body, uint32_t *snd_len)
+{
+    int err = 0;
+    INIT_STRUCT_AND_CHECK(port_mode_params);
+
+    /* validate parameters */
+    MLAG_BAIL_CHECK(port_mode_params->port_mode < MLAG_PORT_MODE_LAST,
+                    -EINVAL);
+
+    MLAG_LOG(MLAG_LOG_DEBUG, "Set port [%lu] to mode [%u]\n",
+             port_mode_params->port_id, port_mode_params->port_mode);
+
+    err = mlag_port_mode_set(port_mode_params->port_id,
+                             port_mode_params->port_mode);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    RETURN_EMPTY_REPLY(snd_body, snd_len);
+
+bail:
+    return err;
+}
+
+/**
+ * Gets port mode.
+ * This function works asynchronously. After verifying its arguments are valid,
+ * it queues the operation and returns immediately.
+ *
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
+ *                           Pointer to an already allocated memory structure.
+ * @param[in] rcv_len - Receive bytes.
+ * @param[out] snd_body - Response content.
+ * @param[out] snd_len - Response size.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_internal_api_port_mode_get(uint8_t *rcv_msg_body, uint32_t rcv_len,
+                                uint8_t **snd_body, uint32_t *snd_len)
+{
+    int err = 0;
+    INIT_STRUCT_AND_CHECK(port_mode_params);
+
+    MLAG_LOG(MLAG_LOG_DEBUG, "Get port [%lu] mode]\n",
+             port_mode_params->port_id);
+
+    err = mlag_port_mode_get(port_mode_params->port_id,
+                             &port_mode_params->port_mode);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    (*snd_body) = (uint8_t *)(port_mode_params);
+    (*snd_len) = sizeof(struct mlag_api_port_mode_params);
+
+bail:
+    return err;
+}
+
+/**
+ * Sets the local system ID for LACP PDUs.
+ * This function works asynchronously.
+ *
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
+ *                           Pointer to an already allocated memory structure.
+ * @param[in] rcv_len - Receive bytes.
+ * @param[out] snd_body - Response content.
+ * @param[out] snd_len - Response size.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_internal_api_lacp_local_sys_id_set(uint8_t *rcv_msg_body,
+                                        uint32_t rcv_len,
+                                        uint8_t **snd_body, uint32_t *snd_len)
+{
+    int err = 0;
+    INIT_STRUCT_AND_CHECK(lacp_actor_params);
+
+    MLAG_LOG(MLAG_LOG_DEBUG, "Set local sys_id to [%llu] \n",
+             lacp_actor_params->system_id);
+
+    err = mlag_lacp_local_sys_id_set(lacp_actor_params->system_id);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    RETURN_EMPTY_REPLY(snd_body, snd_len);
+
+bail:
+    return err;
+}
+
+/**
+ * Gets actor attributes. The actor attributes are
+ * system ID to be used in the LACP PDU and a chassis ID
+ * which is an index of this node within the MLAG
+ * cluster, with a value in the range of 0..15
+ *
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
+ *                           Pointer to an already allocated memory structure.
+ * @param[in] rcv_len - Receive bytes.
+ * @param[out] snd_body - Response content.
+ * @param[out] snd_len - Response size.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_internal_api_lacp_actor_parameters_get(uint8_t *rcv_msg_body,
+                                            uint32_t rcv_len,
+                                            uint8_t **snd_body,
+                                            uint32_t *snd_len)
+{
+    int err = 0;
+    INIT_STRUCT_AND_CHECK(lacp_actor_params);
+
+    err = mlag_lacp_actor_parameters_get(&lacp_actor_params->system_id,
+                                         &lacp_actor_params->chassis_id);
+
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    (*snd_body) = (uint8_t *)(lacp_actor_params);
+    (*snd_len) = sizeof(struct mlag_api_lacp_actor_params);
+
+bail:
+    return err;
+}
+
+/**
+ * Triggers a selection query to the MLAG module.
+ * Since MLAG is distributed, this request may involve a remote peer, so
+ * this function works asynchronously. The response for this request is
+ * guaranteed and it is issued as a notification when the response is available.
+ * When a delete command is used, only port_id parameter is relevant.
+ * Force option is relevant for ADD command and is given in order to allow
+ * releasing currently used key and migrating to the given partner.
+ *
+ * @param[in] rcv_msg_body - Contains the necessary parameters.
+ *                           Pointer to an already allocated memory structure.
+ * @param[in] rcv_len - Receive bytes.
+ * @param[out] snd_body - Response content.
+ * @param[out] snd_len - Response size.
+ *
+ * @return 0 - Operation completed successfully.
+ * @return -EINVAL - If an input parameter is invalid.
+ * @return -EIO - Network problem or operation dispatch failure.
+ * @return -EPERM - Operation not permitted - pre-condition failed - initialize MLAG first.
+ */
+int
+mlag_internal_api_lacp_selection_request(uint8_t *rcv_msg_body,
+                                         uint32_t rcv_len,
+                                         uint8_t **snd_body,
+                                         uint32_t *snd_len)
+{
+    int err = 0;
+    INIT_STRUCT_AND_CHECK(lacp_selection_request_params);
+
+    MLAG_LOG(MLAG_LOG_DEBUG,
+             "lacp selection request cmd [%s] req_id [%u] port [%lu] sys_id [%llu] key [%u] force [%u]\n",
+             ACCESS_COMMAND_STR(lacp_selection_request_params->access_cmd),
+             lacp_selection_request_params->request_id,
+             lacp_selection_request_params->port_id,
+             lacp_selection_request_params->partner_sys_id,
+             lacp_selection_request_params->partner_key,
+             lacp_selection_request_params->force);
+
+    err = mlag_lacp_selection_request(
+        lacp_selection_request_params->access_cmd,
+        lacp_selection_request_params->request_id,
+        lacp_selection_request_params->port_id,
+        lacp_selection_request_params->partner_sys_id,
+        lacp_selection_request_params->partner_key,
+        lacp_selection_request_params->force);
+    MLAG_BAIL_CHECK_NO_MSG(err);
+
+    RETURN_EMPTY_REPLY(snd_body, snd_len);
+
+bail:
+    return err;
+}
+
+

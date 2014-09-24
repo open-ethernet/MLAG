@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 
 #define PORT_DB_C_
@@ -661,7 +661,7 @@ port_db_counters_clear(void)
 }
 
 /**
- *  This function gets peer operational state vector
+ *  This function increments specific counter
  *
  * @param[in] counter - counter to increment
  *

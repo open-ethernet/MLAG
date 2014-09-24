@@ -53,6 +53,67 @@ struct sl_trap_receive_info {
     unsigned int        is_mlag;    /**<! Indicates if source_port_id is mlag (0=False , 1=True)*/
 };
 
+/**
+ *  IGMP v2 Query Packet
+ */
+struct igmp_v2_query {
+    /* IP Header */
+    uint8_t ip_vhl;        /* version and header length*/
+#define IP_IGMP_Q_V2_VHL        0x45
+    uint8_t ip_tos;        /* type of service */
+    uint16_t ip_len;       /* total length */
+#define IP_IGMP_Q_V2_TOTAL_LEN  28
+    uint16_t ip_id;        /* identification */
+    uint16_t ip_off;       /* fragment offset field */
+#define IP_RF 0x8000       /* reserved fragment flag */
+#define IP_DF 0x4000       /* dont fragment flag */
+#define IP_MF 0x2000       /* more fragments flag */
+#define IP_OFFMASK 0x1fff  /* mask for fragmenting bits */
+    uint8_t ip_ttl;        /* time to live */
+    uint8_t ip_p;          /* protocol */
+#define IGMP_PROTO              2
+    uint16_t ip_sum;       /* checksum */
+#define IP_IGMP_Q_V2_SUM        0xd9df /* using the value that matches this
+                                        * packet - NOTE: the identifier is set
+                                        * to zero */
+    uint32_t ip_src;
+    uint32_t ip_dst;        /* source and dest address */
+#define IGMP_ALL_HOSTS_GROUP 0xe0000001 /* 224.0.0.1*/
+
+    /* IGMP Header */
+    uint8_t   pkt_type;
+#define IGMP_MEMBERSHIP_QUERY 0x11
+    uint8_t   max_resp_time;
+#define IGMP_MAX_RESP_TIME    0x64
+    uint16_t  check_sum;
+#define IGMP_QUERY_CHECK_SUM  0xee9b
+    uint32_t  group_addr;
+}__attribute__ ((__packed__));
+
+
+/**
+ * sl_api_igmp_ctrl_pkt structure is used to store IGMP packet
+ * and system MAC ID
+ */
+struct sl_api_igmp_ctrl_pkt_data {
+        unsigned long long system_mac_id;
+        struct igmp_v2_query query_packet;
+};
+
+/**
+ * sl_api_ctrl_pkt_types union is used to store sl_api_ctrk_pkt_send API
+ * parameters.
+ */
+union sl_api_ctrl_pkt_types {
+        struct sl_api_igmp_ctrl_pkt_data  igmp_ctrl_pkt_data;
+};
+
+struct sl_api_ctrl_pkt_data {
+        enum oes_l2_packet  l2_pkt_type;        /**<! L2 packet type*/
+        union sl_api_ctrl_pkt_types ctrl_pkt;   /**<! ctrl packet data*/
+};
+
+
 /************************************************
  *  Global variables
  ***********************************************/
@@ -236,6 +297,16 @@ sl_api_vlan_oper_status_trigger_get(void);
 
 
 /**
+ * This function trigger a system event in order to get notified on
+ * port operational status.
+ *
+ * @return 0 when successful, otherwise ERROR
+ */
+int
+sl_api_port_oper_status_trigger(const unsigned long port_id,
+                                const enum oes_port_oper_state);
+
+/**
 * This function retrieves the file descriptor of the current open channel
 * used for receiving a packet
 *
@@ -319,6 +390,20 @@ sl_api_pkt_send_loopback_ctrl(const int fd, const void const *pkt,
                               const unsigned long pkt_size,
                               const enum oes_l2_packet l2_trap_id,
                               const unsigned long ingress_port_id);
+
+/**
+* @param[in] fd             - File descriptor to send from.
+* @param[in] pkt            - buffer containing the packet to send.
+* @param[in] pkt_size       - size of packet.
+* @param[in] egress_port_id - destination mlag port id.
+*
+* @return 0 when successful, otherwise ERROR
+*/
+int
+sl_api_ctrl_pkt_send(const int fd,
+                     const struct sl_api_ctrl_pkt_data *pkt_data,
+                     const unsigned long pkt_size,
+                     const unsigned long egress_port_id);
 
 
 

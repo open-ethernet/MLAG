@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #include <errno.h>
 #include <complib/cl_thread.h>
 #include <complib/cl_init.h>
@@ -35,6 +35,7 @@
 #include <libs/mlag_common/mlag_common.h>
 #include <libs/health_manager/health_dispatcher.h>
 #include <libs/port_manager/port_manager.h>
+#include <libs/lacp_manager/lacp_manager.h>
 #include <oes_types.h>
 #include "mlag_manager.h"
 #include "mlag_manager_db.h"
@@ -102,6 +103,12 @@ static int dispatch_reload_delay_interval_set(uint8_t *buffer);
 static int dispatch_peer_delete_sync_event(uint8_t *buffer);
 static int dispatch_stop_done_event(uint8_t *data);
 static int dispatch_reconnect_event(uint8_t *data);
+static int dispatch_port_mode_set_event(uint8_t *data);
+static int dispatch_lacp_sys_id_set(uint8_t *data);
+static int dispatch_lacp_selection_request(uint8_t *data);
+static int dispatch_lacp_selection_event(uint8_t *data);
+static int dispatch_lacp_release_event(uint8_t *data);
+static int dispatch_lacp_sys_id_update_event(uint8_t *data);
 
 /************************************************
  *  Global variables
@@ -151,7 +158,13 @@ static int medium_prio_events[] = {
     MLAG_DEINIT_EVENT,
     MLAG_RELOAD_DELAY_INTERVAL_CHANGE,
     MLAG_PEER_DEL_SYNC_EVENT,
-    MLAG_STOP_DONE_EVENT
+    MLAG_STOP_DONE_EVENT,
+    MLAG_PORT_MODE_SET_EVENT,
+    MLAG_LACP_SYS_ID_SET,
+    MLAG_LACP_SELECTION_REQUEST,
+    MLAG_LACP_SELECTION_EVENT,
+    MLAG_LACP_RELEASE_EVENT,
+    MLAG_LACP_SYS_ID_UPDATE_EVENT,
 };
 
 
@@ -225,8 +238,19 @@ static handler_command_t mlag_dispatcher_commands[] = {
      dispatch_peer_delete_sync_event, NULL},
     {MLAG_STOP_DONE_EVENT, "Mlag_stop_done event",
      dispatch_stop_done_event, NULL},
-
-    {0, "", NULL, NULL}
+    {MLAG_PORT_MODE_SET_EVENT, "Mlag port mode set event",
+     dispatch_port_mode_set_event, NULL },
+    {MLAG_LACP_SYS_ID_SET, "Mlag lacp system ID set",
+     dispatch_lacp_sys_id_set, NULL},
+    {MLAG_LACP_SELECTION_REQUEST, "Mlag lacp selection request",
+     dispatch_lacp_selection_request, NULL},
+    {MLAG_LACP_SELECTION_EVENT, "Mlag LACP selection event",
+     dispatch_lacp_selection_event, NULL },
+     {MLAG_LACP_RELEASE_EVENT, "Mlag LACP release event",
+      dispatch_lacp_release_event, NULL },
+     {MLAG_LACP_SYS_ID_UPDATE_EVENT, "Mlag LACP system id update event",
+      dispatch_lacp_sys_id_update_event, NULL },
+     {0, "", NULL, NULL}
 };
 
 static struct mlag_comm_layer_wrapper_data comm_layer_wrapper;
@@ -286,6 +310,9 @@ dispatch_start_event(uint8_t *data)
     err = port_manager_start();
     MLAG_BAIL_ERROR_MSG(err, "Port manager module start failed\n");
 
+    err = lacp_manager_start(data);
+    MLAG_BAIL_ERROR_MSG(err, "LACP manager module start failed\n");
+
     err = mlag_manager_start(data);
     MLAG_BAIL_ERROR_MSG(err, "Mlag manager module start failed\n");
 
@@ -320,6 +347,9 @@ dispatch_stop_event(uint8_t *data)
 
     err = mlag_master_election_stop(data);
     MLAG_BAIL_ERROR_MSG(err, "Master election module stop failed\n");
+
+    err = lacp_manager_stop();
+    MLAG_BAIL_ERROR_MSG(err, "LACP manager module stop failed\n");
 
     err = port_manager_stop();
     MLAG_BAIL_ERROR_MSG(err, "Port manager module stop failed\n");
@@ -358,12 +388,14 @@ dispatch_conn_notify_event(uint8_t *data)
     if (ev->data == &comm_layer_wrapper) {
         err = mlag_comm_layer_wrapper_connection_notification(
             ev->new_handle, ev->port, ev->ipv4_addr, ev->data, &ev->rc);
-        MLAG_BAIL_ERROR_MSG(err, "Connection notification event dispatch failed\n");
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Connection notification event dispatch failed\n");
 
         if ((comm_layer_wrapper.is_started) &&
             (ev->rc == 0)) {
             err = mlag_manager_peer_connected(ev);
-            MLAG_BAIL_ERROR_MSG(err, "Peer connected notification handling failed\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Peer connected notification handling failed\n");
         }
     }
 
@@ -415,11 +447,11 @@ dispatch_port_cfg_event(uint8_t *data)
         err = port_manager_mlag_ports_add(port_cfg->ports, port_cfg->port_num);
     }
     else {
-    	if (port_cfg->port_num != 1) {
-    	    MLAG_LOG(MLAG_LOG_NOTICE,
-    	             "port number to delete is %d, supported only one port\n",
-    	             port_cfg->port_num);
-    	}
+        if (port_cfg->port_num != 1) {
+            MLAG_LOG(MLAG_LOG_NOTICE,
+                     "port number to delete is %d, supported only one port\n",
+                     port_cfg->port_num);
+        }
         err = port_manager_mlag_port_delete(port_cfg->ports[0]);
     }
     MLAG_BAIL_ERROR_MSG(err, "Port configuration handling failed\n");
@@ -472,17 +504,25 @@ dispatch_peer_state_change_event(uint8_t *data)
         MLAG_BAIL_ERROR_MSG(err, "Failed to stop comm layer wrapper\n");
     }
 
+    err = lacp_manager_peer_state_change(state_change);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "LACP manager failure handling peer state change\n");
+
     err = port_manager_peer_state_change(state_change);
-    MLAG_BAIL_ERROR_MSG(err, "Port manager failure handling peer state change\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Port manager failure handling peer state change\n");
 
     err = mlag_master_election_peer_status_change(state_change);
-    MLAG_BAIL_ERROR_MSG(err, "Master election failure handling peer state change\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Master election failure handling peer state change\n");
 
     err = mlag_l3_interface_peer_status_change(state_change);
-    MLAG_BAIL_ERROR_MSG(err, "L3 interface manager failure handling peer state change\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "L3 interface manager failure handling peer state change\n");
 
     err = mlag_manager_peer_status_change(state_change);
-    MLAG_BAIL_ERROR_MSG(err, "Mlag manager failure handling peer state change\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Mlag manager failure handling peer state change\n");
 
 bail:
     return err;
@@ -516,7 +556,8 @@ dispatch_add_peer_event(uint8_t *data)
 
     /* Add IPL to vlan of l3 interface on IPL for control messages */
     err = mlag_l3_interface_peer_add((struct peer_conf_event_data*)data);
-    MLAG_BAIL_ERROR_MSG(err, "L3 interface manager failure handling peer add\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "L3 interface manager failure handling peer add\n");
 
     err = mlag_manager_peer_add((struct peer_conf_event_data*)data);
     MLAG_BAIL_ERROR_MSG(err, "Mlag manager failure handling peer add\n");
@@ -550,7 +591,8 @@ dispatch_delete_peer_event(uint8_t *data)
 
     /* Remove IPL from vlan of l3 interface on IPL for control messages */
     err = mlag_l3_interface_peer_del();
-    MLAG_BAIL_ERROR_MSG(err, "L3 interface manager failure handling peer delete\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "L3 interface manager failure handling peer delete\n");
 
 bail:
     return err;
@@ -583,7 +625,8 @@ dispatch_ipl_ip_addr_config_event(uint8_t *data)
     config_change_data.peer_ip_addr = 0;
 
     err = mlag_master_election_config_change(&config_change_data);
-    MLAG_BAIL_ERROR_MSG(err, "Master election failure handling IPL IP change\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Master election failure handling IPL IP change\n");
 
     if (ipl_ip_data->local_ip_addr == 0) {
         /* Remove IPL from vlan of l3 interface on IPL for control messages */
@@ -610,8 +653,6 @@ dispatch_switch_status_change_event(uint8_t *data)
         (struct switch_status_change_event_data *) data;
     char *current_status_str;
     char *previous_status_str;
-    enum master_election_switch_status previous_switch_status =
-        comm_layer_wrapper.current_switch_status;
 
     err = mlag_master_election_get_switch_status_str(ev->current_status,
                                                      &current_status_str);
@@ -624,26 +665,28 @@ dispatch_switch_status_change_event(uint8_t *data)
              "Master Election switch status change event: current %s, previous %s\n",
              current_status_str, previous_status_str);
 
+    /* Close what we had previously before changing the status in the wrapper */
+    MLAG_LOG(MLAG_LOG_NOTICE, "Closing all connections and/or listener\n");
+    err = mlag_comm_layer_wrapper_stop(&comm_layer_wrapper,
+                                       SERVER_STOP,
+                                       ev->my_peer_id);
+    MLAG_BAIL_ERROR(err);
+
     comm_layer_wrapper.current_switch_status = ev->current_status;
 
-    if ((previous_switch_status == DEFAULT_SWITCH_STATUS) ||
-        (previous_switch_status == STANDALONE)) {
-        /* Switch status changed from default status
-         * that means after start.
-         * Start TCP server and Master Logic  for MASTER only.
-         * For SLAVE TCP client will be opened upon peer start event.
-         * For STANDALONE no need to open TCP connection.
-         */
-        if (comm_layer_wrapper.current_switch_status == MASTER) {
-            MLAG_LOG(MLAG_LOG_NOTICE,
-                     "Start listener on Master \n");
-            err = mlag_comm_layer_wrapper_start(&comm_layer_wrapper);
-            MLAG_BAIL_ERROR_MSG(err, "Failed starting mlag listener socket\n");
-        }
+    if (comm_layer_wrapper.current_switch_status == MASTER) {
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "Start listener on Master \n");
+        err = mlag_comm_layer_wrapper_start(&comm_layer_wrapper);
+        MLAG_BAIL_ERROR_MSG(err, "Failed starting mlag listener socket\n");
     }
 
     err = mlag_l3_interface_switch_status_change(ev);
-    MLAG_BAIL_ERROR_MSG(err, "Failed handling role change in L3 interface manager\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed handling role change in L3 interface manager\n");
+
+    err = lacp_manager_role_change(ev->current_status);
+    MLAG_BAIL_ERROR_MSG(err, "Failed handling role change in lacp manager\n");
 
     err = port_manager_role_change(ev->current_status);
     MLAG_BAIL_ERROR_MSG(err, "Failed handling role change in port manager\n");
@@ -856,10 +899,16 @@ dispatch_peer_start_event(uint8_t *data)
     peer_start = (struct peer_state_change_data *)data;
 
     err = mlag_l3_interface_peer_start_event(peer_start);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in peer start dispatch to L3 interface manager\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in peer start dispatch to L3 interface manager\n");
 
     err = port_manager_peer_start(peer_start->mlag_id);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in peer start dispatch to port manager\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in peer start dispatch to port manager\n");
+
+    err = lacp_manager_peer_start(peer_start->mlag_id);
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in peer start dispatch to lacp manager\n");
 
 bail:
     return err;
@@ -881,13 +930,16 @@ dispatch_peer_enable_event(uint8_t *data)
     peer_en = (struct peer_state_change_data *)data;
 
     err = mlag_l3_interface_peer_enable(peer_en);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in peer enable dispatch to L3 interface manager\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in peer enable dispatch to L3 interface manager\n");
 
     err = port_manager_peer_enable(peer_en->mlag_id);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in peer enable dispatch to port manager\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in peer enable dispatch to port manager\n");
 
     err = mlag_manager_peer_enable(peer_en);
-    MLAG_BAIL_ERROR_MSG(err, "Failed in peer enable dispatch to mlag manager\n");
+    MLAG_BAIL_ERROR_MSG(err,
+                        "Failed in peer enable dispatch to mlag manager\n");
 
 bail:
     return err;
@@ -1109,7 +1161,8 @@ rcv_msg_handler(struct addr_info *ad_info,
     }
     err = cmd_data.func((uint8_t *)payload_data);
     if (err != -ECANCELED) {
-        MLAG_BAIL_ERROR_MSG(err, "Unexpected error handling message opcode [%d]\n",
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Unexpected error handling message opcode [%d]\n",
                             opcode);
     }
 
@@ -1155,7 +1208,8 @@ net_order_msg_handler(uint8_t *payload, enum message_operation oper)
     }
     err = cmd_data.net_order_func((uint8_t *)payload, oper);
     if (err != -ECANCELED) {
-        MLAG_BAIL_ERROR_MSG(err, "Unexpected error in net order handle opcode [%d]",
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Unexpected error in net order handle opcode [%d]",
                             opcode);
     }
 
@@ -1171,7 +1225,7 @@ bail:
 static int
 mlag_dispatcher_add_fd(int fd_index, int fd, fd_handler_func handler)
 {
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mlag dispatcher added FD %d to index %d\n",
              fd, fd_index);
 
@@ -1188,7 +1242,7 @@ mlag_dispatcher_add_fd(int fd_index, int fd, fd_handler_func handler)
 static int
 mlag_dispatcher_delete_fd(int fd_index)
 {
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mlag dispatcher deleted FD from index %d\n",
              fd_index);
 
@@ -1352,6 +1406,9 @@ modules_init(void)
 {
     int err = 0;
 
+    err = lacp_manager_init(mlag_dispatcher_insert_msgs);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to init lacp manager module\n");
+
     err = port_manager_init(mlag_dispatcher_insert_msgs);
     MLAG_BAIL_ERROR_MSG(err, "Failed to init port manager module\n");
 
@@ -1389,6 +1446,9 @@ modules_deinit(void)
 
     err = port_manager_deinit();
     MLAG_BAIL_ERROR_MSG(err, "Failed to deinit port manager module\n");
+
+    err = lacp_manager_deinit();
+    MLAG_BAIL_ERROR_MSG(err, "Failed to deinit lacp manager module\n");
 
 bail:
     return err;
@@ -1543,17 +1603,20 @@ mlag_dispatcher_deinit(void)
 
     err = close_events(&event_fds);
     if (err) {
-        MLAG_LOG(MLAG_LOG_ERROR, "mlag dispatcher event sources deinit failed\n");
+        MLAG_LOG(MLAG_LOG_ERROR,
+                 "mlag dispatcher event sources deinit failed\n");
     }
 
     err = deinit_command_db(mlag_cmd_db);
     if (err) {
-        MLAG_LOG(MLAG_LOG_ERROR, "mlag dispatcher commands DB deinit failed\n");
+        MLAG_LOG(MLAG_LOG_ERROR,
+                 "mlag dispatcher commands DB deinit failed\n");
     }
 
     err = deinit_command_db(mlag_dispatcher_ibc_msg_db);
     if (err) {
-        MLAG_LOG(MLAG_LOG_ERROR, "mlag dispatcher ibc commands DB deinit failed\n");
+        MLAG_LOG(MLAG_LOG_ERROR,
+                 "mlag dispatcher ibc commands DB deinit failed\n");
     }
 
     return err;
@@ -1602,7 +1665,7 @@ bail:
 /*
  * This function dispatches stop done event.
  *
- * @param[in] buffer - event data.
+ * @param[in] data - event data.
  *
  * @return 0 - Operation completed successfully.
  */
@@ -1613,6 +1676,141 @@ dispatch_stop_done_event(uint8_t *data)
 
     err = mlag_manager_stop_done_handle(data);
     MLAG_BAIL_ERROR_MSG(err, "Dispatch stop done handle failed\n");
+
+bail:
+    return err;
+}
+
+/*
+ *  This function dispatches port mode set event
+ *
+ *  @param[in] data - pointer to wrapper data structure
+ *
+ * @return int as error code.
+ */
+static int
+dispatch_port_mode_set_event(uint8_t *data)
+{
+    int err = 0;
+    struct port_mode_set_event_data *ev =
+        (struct port_mode_set_event_data *) data;
+
+    err = port_manager_port_mode_set(ev->port_id, ev->port_mode);
+    MLAG_BAIL_ERROR_MSG(err, "Failed setting port mode\n");
+
+bail:
+    return err;
+}
+
+/*
+ *  This function dispatches lacp local system Id set event
+ *
+ *  @param[in] data - pointer to wrapper data structure
+ *
+ * @return int as error code.
+ */
+static int
+dispatch_lacp_sys_id_set(uint8_t *data)
+{
+    int err = 0;
+    struct lacp_sys_id_set_data *ev =
+        (struct lacp_sys_id_set_data *) data;
+
+    err = lacp_manager_system_id_set(ev->sys_id);
+    MLAG_BAIL_ERROR_MSG(err, "Failed setting lacp system ID\n");
+
+bail:
+    return err;
+}
+
+/*
+ *  This function dispatches lacp aggregator selection request
+ *
+ *  @param[in] data - pointer to wrapper data structure
+ *
+ * @return int as error code.
+ */
+static int
+dispatch_lacp_selection_request(uint8_t *data)
+{
+    int err = 0;
+    struct lacp_selection_request_event_data *request =
+        (struct lacp_selection_request_event_data *) data;
+
+    if (request->unselect == FALSE) {
+        err = lacp_manager_aggregator_selection_request(request->request_id,
+                                                        request->port_id,
+                                                        request->partner_sys_id,
+                                                        request->partner_key,
+                                                        request->force);
+        MLAG_BAIL_ERROR_MSG(err, "Failed handling LACP selection ADD\n");
+    }
+    else {
+        err = lacp_manager_aggregator_selection_release(request->request_id,
+                                                        request->port_id);
+        MLAG_BAIL_ERROR_MSG(err, "Failed handling LACP selection release\n");
+    }
+
+bail:
+    return err;
+}
+
+/*
+ *  This function dispatches lacp aggregator free event
+ *
+ *  @param[in] data - pointer to wrapper data structure
+ *
+ * @return int as error code.
+ */
+static int
+dispatch_lacp_release_event(uint8_t *data)
+{
+    int err = 0;
+    struct lacp_aggregator_release_message *msg =
+        (struct lacp_aggregator_release_message *) data;
+
+    err = lacp_manager_aggregator_free_handle(msg);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to handle aggregation free event\n");
+
+bail:
+    return err;
+}
+
+/*
+ *  This function dispatches lacp system id update event
+ *
+ *  @param[in] data - pointer to wrapper data structure
+ *
+ * @return int as error code.
+ */
+static int
+dispatch_lacp_sys_id_update_event(uint8_t *data)
+{
+    int err = 0;
+
+    err = port_manager_lacp_sys_id_update_handle(data);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to handle system id update event\n");
+
+bail:
+    return err;
+}
+
+/*
+ *  This function dispatches lacp aggregator selection request
+ *
+ *  @param[in] data - pointer to wrapper data structure
+ *
+ * @return int as error code.
+ */
+static int
+dispatch_lacp_selection_event(uint8_t *data)
+{
+    int err = 0;
+    struct lacp_aggregation_message_data *request =
+        (struct lacp_aggregation_message_data *) data;
+
+    err = lacp_manager_aggregator_selection_handle(request);
+    MLAG_BAIL_ERROR_MSG(err, "Failed to handle aggregation selection event\n");
 
 bail:
     return err;

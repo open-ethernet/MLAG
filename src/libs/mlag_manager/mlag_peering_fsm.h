@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_PEERING_FSM_H_
 #define MLAG_PEERING_FSM_H_
@@ -86,6 +86,8 @@ typedef struct mlag_peering_fsm
   uint32_t  sync_states;
   notify_peer_done_cb_t peer_sync_done_cb;
   notify_peer_start_cb_t peer_sync_start_cb;
+  unsigned char igmp_enabled;
+  unsigned char lacp_enabled;
  }mlag_peering_fsm;
 
 #endif /* MLAG_PEERING_FSM_H_ */

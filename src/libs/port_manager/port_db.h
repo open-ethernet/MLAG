@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef PORT_DB_H_
 #define PORT_DB_H_
@@ -85,6 +85,7 @@ enum port_manager_peer_state {
 
 struct mlag_port_data {
     unsigned long port_id;
+    enum mlag_port_mode port_mode;
     uint32_t peers_conf_state;
     uint32_t peers_oper_state;
     /* port logic */
@@ -301,7 +302,7 @@ int port_db_counters_get(struct mlag_counters *counters);
 void port_db_counters_clear(void);
 
 /**
- *  This function gets peer operational state vector
+ *  This function increments specific counter
  *
  * @param[in] counter - counter to increment
  *

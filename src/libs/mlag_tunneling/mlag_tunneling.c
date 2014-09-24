@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_init.h>
@@ -44,6 +44,7 @@
 #include "mlag_topology.h"
 #include "mlag_api_defs.h"
 #include "mlag_tunneling.h"
+#include "port_manager.h"
 
 /************************************************
  *  Local Defines
@@ -64,6 +65,7 @@
  ***********************************************/
 struct tunneling_counters {
     unsigned long long received_from_hw;
+    unsigned long long sent_queries;
     unsigned long long received_from_peer;
     unsigned long long sent_to_peer;
 };
@@ -175,6 +177,8 @@ static int sl_fd;
  * can be a singleton.
  */
 static struct igmp_packet_wrapper curr_packet;
+
+struct sl_api_ctrl_pkt_data igmp_query_pkt_data;
 
 /************************************************
  *  Function implementations
@@ -600,7 +604,7 @@ bail:
 
 /*
  *  This function dispatches port state change event. We need to re-learn the
- *  MC status on a port chagne event and we do that by sending IGMP query
+ * MC status on a port change event and we do that by sending IGMP query
  *
  * @param[in] buffer - event data
  *
@@ -615,10 +619,32 @@ tunnel_dispatch_port_state_change(uint8_t *buffer)
         (struct port_oper_state_change_data *)buffer;
     MLAG_BAIL_CHECK(state_change != NULL, -EINVAL);
 
+    if (!igmp_enabled) {
+        goto bail;
+    }
+
     /* No need to learn on the IPL */
-    if (state_change->is_ipl == FALSE) {
-        err = 0; /* This is where the IGMP query is sent on that interface */
+    if ((state_change->is_ipl == FALSE) && (state_change->state
+                                            == MLAG_PORT_OPER_UP)
+        && peer_connected) {
+        /* Send an IGMP v2 Query */
+        igmp_query_pkt_data.l2_pkt_type = OES_PACKET_IGMP_TYPE_QUERY;
+        igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.system_mac_id =
+            mlag_manager_db_local_system_id_get();
+
+        err = sl_api_ctrl_pkt_send(
+            sl_fd,
+            &igmp_query_pkt_data,
+            sizeof(igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data
+                   .query_packet),
+            state_change->port_id);
         MLAG_BAIL_ERROR(err);
+
+        MLAG_LOG(MLAG_LOG_DEBUG,
+                 "Successfully sent IGMPv2 query on port %lu\n",
+                 state_change->port_id);
+
+        counters.sent_queries++;
     }
 
 bail:
@@ -739,9 +765,6 @@ tunnel_dispatch_peer_state_change_event(uint8_t *buffer)
     struct peer_state_change_data *data =
         (struct peer_state_change_data *)buffer;
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "Received peer %d change event %d\n",
-             data->mlag_id, data->state);
-
     /* When STP will be added, this condition should change */
     if (!igmp_enabled) {
         goto bail;
@@ -831,13 +854,43 @@ static int
 tunnel_dispatch_start(uint8_t *buffer)
 {
     int err = 0;
-    struct mlag_start_params *params = (struct mlag_start_params *)buffer;
+    struct start_event_data *params = (struct start_event_data *)buffer;
 
     MLAG_BAIL_CHECK(params, -EINVAL);
 
-    igmp_enabled = params->igmp_enable;
+    memset(&igmp_query_pkt_data, 0, sizeof(igmp_query_pkt_data));
+
+    igmp_enabled = params->start_params.igmp_enable;
     MLAG_LOG(MLAG_LOG_NOTICE, "IGMP %s\n",
              (igmp_enabled ? "enabled" : "disabled"));
+
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_vhl =
+        IP_IGMP_Q_V2_VHL;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_tos = 0x0;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_len =
+        htons(
+            IP_IGMP_Q_V2_TOTAL_LEN);
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_id = 0;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_off = 0;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_ttl = 1;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_p =
+        IGMP_PROTO;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_src = 0;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_dst =
+        htonl(
+            IGMP_ALL_HOSTS_GROUP);
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.ip_sum =
+        htons(
+            IP_IGMP_Q_V2_SUM);
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.pkt_type =
+        IGMP_MEMBERSHIP_QUERY;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.max_resp_time
+        =
+            IGMP_MAX_RESP_TIME;
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.check_sum =
+        htons(IGMP_QUERY_CHECK_SUM);
+    igmp_query_pkt_data.ctrl_pkt.igmp_ctrl_pkt_data.query_packet.group_addr =
+        0;
 
 bail:
     return err;
@@ -1016,6 +1069,7 @@ mlag_tunneling_dump(void (*dump_cb)(const char *, ...))
     DUMP_OR_LOG("IGMP %s\n", (igmp_enabled ? "enabled" : "disabled"));
     DUMP_OR_LOG("%sConnected\n", (peer_connected ? "" : "Not "));
     DUMP_OR_LOG("Received from HW: %llu\n", counters.received_from_hw);
+    DUMP_OR_LOG("Sent queries:     %llu\n", counters.sent_queries);
     DUMP_OR_LOG("Received:         %llu\n", counters.received_from_peer);
     DUMP_OR_LOG("Sent:             %llu\n", counters.sent_to_peer);
 

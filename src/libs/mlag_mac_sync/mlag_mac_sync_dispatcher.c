@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #include <errno.h>
 #include <complib/cl_thread.h>
 #include <complib/cl_init.h>
@@ -197,7 +197,7 @@ static handler_command_t mac_sync_dispatcher_commands[] = {
      dispatch_internal_age_event, NULL},
     {MLAG_ROUTER_MAC_CFG_EVENT, "Router MAC configuration event",
      dispatch_router_mac_conf_event, NULL},
-    {MLAG_PORT_DELETED_EVENT , "MLAG MPO port deleted event",
+    {MLAG_PORT_DELETED_EVENT, "MLAG MPO port deleted event",
      dispatch_mpo_port_deleted_event, NULL},
 
     {0, "", NULL, NULL}
@@ -466,26 +466,26 @@ dispatch_mpo_port_deleted_event(uint8_t *data)
 {
     int err = 0;
     struct mpo_port_deleted_event_data *ev =
-    		(struct mpo_port_deleted_event_data *)data;
+        (struct mpo_port_deleted_event_data *)data;
 
     if (ev->status) {
         err = mlag_mac_sync_peer_manager_port_local_flush(ev->port);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in flush deleted port %lu\n",
-        		ev->port);
+                            "Failed in flush deleted port %lu\n",
+                            ev->port);
     }
 
 bail:
     /* Signal port delete done to Internal API module */
     err = mlag_manager_port_delete_done();
     if (err) {
-    	MLAG_LOG(MLAG_LOG_WARNING,
-    			 "Failed in sending port [%lu] delete done event\n",
-    		     ev->port);
+        MLAG_LOG(MLAG_LOG_WARNING,
+                 "Failed in sending port [%lu] delete done event\n",
+                 ev->port);
     }
     MLAG_LOG(MLAG_LOG_NOTICE,
-    		 "Delete port [%lu] procedure finished\n",
-    		 ev->port);
+             "Delete port [%lu] procedure finished\n",
+             ev->port);
     return err;
 }
 
@@ -536,8 +536,7 @@ dispatch_switch_status_change_event(uint8_t *data)
         (struct switch_status_change_event_data *) data;
     char *current_status_str;
     char *previous_switch_str;
-    enum master_election_switch_status previous_switch_status =
-        comm_layer_wrapper.current_switch_status;
+
 
     err = mlag_master_election_get_switch_status_str(ev->current_status,
                                                      &current_status_str);
@@ -546,7 +545,7 @@ dispatch_switch_status_change_event(uint8_t *data)
                                                      &previous_switch_str);
     MLAG_BAIL_ERROR_MSG(err, "Failed in peer status change event 1\n");
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "Master Election switch status change event: currently %s, previously %s\n",
              current_status_str, previous_switch_str);
 
@@ -554,20 +553,17 @@ dispatch_switch_status_change_event(uint8_t *data)
         (struct switch_status_change_event_data *) data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in peer status change event 2\n");
 
+
+    /* Close what we had previously before changing the status in the wrapper */
+    MLAG_LOG(MLAG_LOG_NOTICE, "Closing all connections and/or listener\n");
+    err = mlag_comm_layer_wrapper_stop(&comm_layer_wrapper,
+                                        SERVER_STOP, ev->my_peer_id);
+
     comm_layer_wrapper.current_switch_status = ev->current_status;
 
-    if ((previous_switch_status == DEFAULT_SWITCH_STATUS)
-        || (previous_switch_status == STANDALONE)) {
-        /* Switch status changed from default status
-         * that means after start.
-         * Start TCP server and Master Logic  for MASTER only.
-         * For SLAVE TCP client will be opened upon peer start event.
-         * For STANDALONE no need to open TCP connection.
-         */
-        if (comm_layer_wrapper.current_switch_status == MASTER) {
-            err = mlag_comm_layer_wrapper_start(&comm_layer_wrapper);
-            MLAG_BAIL_ERROR_MSG(err, "Failed in peer status change event 3\n");
-        }
+    if (comm_layer_wrapper.current_switch_status == MASTER) {
+         err = mlag_comm_layer_wrapper_start(&comm_layer_wrapper);
+         MLAG_BAIL_ERROR_MSG(err, "Failed in peer status change event 3\n");
     }
 
 bail:
@@ -601,7 +597,7 @@ dispatch_peer_flush_start_event(uint8_t *data)
 {
     int err = 0;
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "Start Global flush  in Peer\n");
+    MLAG_LOG(MLAG_LOG_INFO, "Start Global flush  in Peer\n");
 
     err = mlag_mac_sync_peer_mngr_flush_start(data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in peer flush start event\n");
@@ -620,7 +616,7 @@ dispatch_master_flush_start_event(uint8_t *data)
 {
     int err = 0;
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "Start Global flush FSM in Master\n");
+    MLAG_LOG(MLAG_LOG_INFO, "Start Global flush FSM in Master\n");
     if (comm_layer_wrapper.current_switch_status == MASTER) {
         err = mlag_mac_sync_master_logic_flush_start(data);
         MLAG_BAIL_ERROR_MSG(err, "Failed in master flush start event\n");
@@ -640,7 +636,7 @@ dispatch_peer_flush_ack_event(uint8_t *data)
 {
     int err = 0;
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "peer acks  to Master flush FSM\n");
+    MLAG_LOG(MLAG_LOG_INFO, "peer acks  to Master flush FSM\n");
     if (comm_layer_wrapper.current_switch_status == MASTER) {
         err = mlag_mac_sync_master_logic_flush_ack(data);
         MLAG_BAIL_ERROR_MSG(err, "Failed in flush ack event\n");
@@ -679,7 +675,7 @@ static int
 dispatch_port_global_state(uint8_t *data)
 {
     int err = 0;
-    MLAG_LOG(MLAG_LOG_NOTICE, "Global port state event\n");
+    MLAG_LOG(MLAG_LOG_INFO, "Global port state event\n");
 
     ASSERT(data);
 
@@ -702,8 +698,6 @@ dispatch_local_learn_event(uint8_t *data)
 {
     int err = 0;
 
-    /*MLAG_LOG(MLAG_LOG_NOTICE, "local learn event\n");*/
-
     err = mlag_mac_sync_master_logic_local_learn(data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in local learn event\n");
 
@@ -721,8 +715,6 @@ dispatch_local_aged_event(uint8_t *data)
 {
     int err = 0;
 
-    /* MLAG_LOG(MLAG_LOG_NOTICE, "local age event\n");*/
-
     err = mlag_mac_sync_master_logic_local_aged(data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in local age event\n");
 
@@ -739,8 +731,6 @@ static int
 dispatch_global_learned_event(uint8_t *data)
 {
     int err = 0;
-
-    /*MLAG_LOG(MLAG_LOG_NOTICE, "Global learn event\n");*/
 
     err = mlag_mac_sync_peer_mngr_global_learned(data, 1);
     if (err == -EXFULL) {
@@ -761,8 +751,6 @@ static int
 dispatch_global_aged_event(uint8_t *data)
 {
     int err = 0;
-
-    /* MLAG_LOG(MLAG_LOG_NOTICE, "Global age event\n");*/
 
     err = mlag_mac_sync_peer_mngr_global_aged(data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in global aged event\n");
@@ -817,8 +805,6 @@ static int
 dispatch_global_reject_event(uint8_t *data)
 {
     int err = 0;
-
-    /*MLAG_LOG(MLAG_LOG_NOTICE, "Global reject to peer event\n");*/
 
     err = mlag_mac_sync_peer_mngr_global_reject(data);
     MLAG_BAIL_ERROR_MSG(err, "Failed in global reject event\n");
@@ -974,7 +960,7 @@ static int
 mac_sync_dispatcher_add_fd(int fd_index, int fd,
                            fd_handler_func handler)
 {
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mac sync dispatcher added FD %d to index %d\n",
              fd, fd_index);
 
@@ -991,7 +977,7 @@ mac_sync_dispatcher_add_fd(int fd_index, int fd,
 static int
 mac_sync_dispatcher_delete_fd(int fd_index)
 {
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "mlag dispatcher deleted FD from index %d\n",
              fd_index);
 

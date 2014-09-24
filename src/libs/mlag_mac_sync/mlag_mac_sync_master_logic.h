@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_MAC_SYNC_MASTER_LOGIC_H_
 #define MLAG_MAC_SYNC_MASTER_LOGIC_H_
@@ -153,8 +153,9 @@ int mlag_mac_sync_master_logic_print(void (*dump_cb)(const char *,
  *
  * @return 0 when successful, otherwise ERROR
  */
-int mlag_mac_sync_master_logic_print_master(void * data, void (*dump_cb)(const char *,
-                                                 ...));
+int mlag_mac_sync_master_logic_print_master(void * data, void (*dump_cb)(
+                                                const char *,
+                                                ...));
 
 
 /**
@@ -172,7 +173,7 @@ int mlag_mac_sync_master_logic_is_peer_enabled(int peer_id, int *res);
 
  * @return 0 when successful, otherwise ERROR
  */
-int mlag_mac_sync_master_logic_notify_fsm_idle(uint64_t key,int timeout);
+int mlag_mac_sync_master_logic_notify_fsm_idle(uint64_t key, int timeout);
 
 /**
  *  This function handles FDB export message from the Peer
@@ -262,7 +263,7 @@ int mlag_mac_sync_master_logic_cookie_func(
  * @param[in] data oes mac entry with filled mac and vlan fields
  * @return
  */
-int  master_print_mac_params(void * data , void (*dump_cb)(const char *,...));
+int master_print_mac_params(void * data, void (*dump_cb)(const char *, ...));
 
 
 /**
@@ -270,6 +271,14 @@ int  master_print_mac_params(void * data , void (*dump_cb)(const char *,...));
  *
  * @return
  */
-void master_print_free_cookie_pool_cnt(void (*dump_cb)(const char *,...) );
+void master_print_free_cookie_pool_cnt(void (*dump_cb)(const char *, ...));
+
+/**
+ *  This function returns free pool count
+ *  @param[out]  cnt  - pointer to the returned number of free master pools
+ *  @return
+ */
+int mlag_mac_sync_master_logic_get_free_cookie_cnt(uint32_t *cnt);
+
 
 #endif /* MLAG_MAC_SYNC_MASTER_LOGIC_H_ */

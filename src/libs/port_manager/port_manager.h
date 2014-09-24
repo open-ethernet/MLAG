@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef PORT_MANAGER_H_
 #define PORT_MANAGER_H_
@@ -443,5 +443,34 @@ int port_manager_sync_finish(struct sync_event_data *port_sync);
  * @return 0 if operation completes successfully.
  */
 int port_manager_dump(void (*dump_cb)(const char *, ...));
+
+/**
+ *  This function sets port mode, either static LAG or LACP LAG
+ *
+ * @param[in] port_id - mlag port id
+ * @param[in] port_mode - static or LACP LAG
+ *
+ * @return 0 if operation completes successfully.
+ */
+int port_manager_port_mode_set(unsigned long port_id,
+                               enum mlag_port_mode port_mode);
+
+/**
+ *  This function gets port mode, either static LAG or LACP LAG
+ *
+ * @param[in] port_id - mlag port id
+ * @param[out] port_mode - static or LACP LAG
+ *
+ * @return 0 if operation completes successfully.
+ */
+int port_manager_port_mode_get(unsigned long port_id,
+                               enum mlag_port_mode *port_mode);
+
+/**
+ *  This function handles LACP system id change in Slave
+ *
+ * @return 0 if operation completes successfully.
+ */
+int port_manager_lacp_sys_id_update_handle(uint8_t *data);
 
 #endif /* PORT_MANAGER_H_ */

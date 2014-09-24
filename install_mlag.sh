@@ -40,6 +40,7 @@ cd $SCRIPT_PATH
 ./configure --with-sxcomplib=/usr/local/ --with-mlnx-lib=/usr/local/ --with-fsmlib=/usr/local/ \
 	--with-oes=$SCRIPT_PATH/../OES --with-oes-lib-path=/usr/local/lib/ --with-oes-lib-name=oesstub \
 	--with-ctrl-learn-hal-lib-path=/usr/local/lib/ --with-ctrl-learn-hal-lib-name=ctrllearnhalstub \
-	--with-sl-lib-path=$SCRIPT_PATH/src/libs/service_layer/.libs/ --with-sl-lib-name=servicelayer
+	--with-sl-lib-path=$SCRIPT_PATH/src/libs/service_layer/.libs/ --with-sl-lib-name=servicelayer \
+	--with-nl-lib-path=$SCRIPT_PATH/src/libs/notification_layer/.libs/ --with-nl-lib-name=mlagnotify
 make && make install
 

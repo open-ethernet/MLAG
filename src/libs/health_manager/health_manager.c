@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <complib/cl_init.h>
 #include <complib/cl_timer.h>
@@ -116,8 +116,8 @@ health_fsm_notify_state(int peer_id, int state_id)
                         peer_id);
 
     MLAG_LOG(MLAG_LOG_NOTICE,
-             "Health : peer_ip [0x%x] new state [%u]\n", peer_ip,
-             state_id);
+             "Health : peer_ip [0x%x] new state [%u - %s]\n", peer_ip,
+             state_id, health_state_str[state_id]);
 
     peer_state.state = state_id;
     if (started == TRUE) {
@@ -127,10 +127,18 @@ health_fsm_notify_state(int peer_id, int state_id)
                             peer_ip);
         peer_state.mlag_id = mlag_id;
 
-        err = send_system_event(MLAG_PEER_STATE_CHANGE_EVENT, &peer_state,
+        if(mlag_id != INVALID_MLAG_PEER_ID){
+
+             err = send_system_event(MLAG_PEER_STATE_CHANGE_EVENT, &peer_state,
                                 sizeof(peer_state));
-        MLAG_BAIL_ERROR_MSG(err,
+             MLAG_BAIL_ERROR_MSG(err,
                             "Failed in sending peer state change event\n");
+        }
+        else{
+           MLAG_LOG(MLAG_LOG_NOTICE,
+                    "Health_illegal_mlag_id : peer_ip [0x%x] %d \n", peer_ip,
+        	        mlag_id );
+        }
     }
 
 bail:
@@ -149,7 +157,7 @@ static void
 health_fsm_user_trace(char *buf, int len)
 {
     UNUSED_PARAM(len);
-    MLAG_LOG(MLAG_LOG_NOTICE, "health_fsm %s\n", buf);
+    MLAG_LOG(MLAG_LOG_INFO, "health_fsm %s\n", buf);
 }
 
 /*
@@ -258,7 +266,7 @@ health_heartbeat_state_change(int peer_id, unsigned long long sys_id,
 {
     int err = 0;
     ASSERT(peer_id < MLAG_MAX_PEERS);
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "Peer [%d] sys_id [%llu] heartbeat state is [%u]\n",
              peer_id, sys_id, heartbeat_state);
     if (heartbeat_state == HEARTBEAT_DOWN) {
@@ -692,15 +700,18 @@ health_manager_mgmt_connection_state_change(unsigned long long system_id,
     if (err == 0) {
         if (mgmt_connection_state == MGMT_UP) {
             err = health_fsm_mgmt_up_ev(&mlag_health_fsm[peer_id]);
-            MLAG_BAIL_ERROR_MSG(err, "Failed to handle mgmt up in health FSM\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed to handle mgmt up in health FSM\n");
         }
         else {
             err = health_fsm_mgmt_down_ev(&mlag_health_fsm[peer_id]);
-            MLAG_BAIL_ERROR_MSG(err, "Failed to handle mgmt down in health FSM\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed to handle mgmt down in health FSM\n");
         }
     }
     else if (err != -ENOENT) {
-        MLAG_BAIL_ERROR_MSG(err, "Failed to get local index from system id [%llu]\n",
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Failed to get local index from system id [%llu]\n",
                             system_id);
     }
     else {
@@ -728,7 +739,7 @@ health_manager_ipl_state_change(int ipl_id, enum oes_port_oper_state ipl_state)
     ASSERT(ipl_id < MLAG_MAX_IPLS);
 
     ipl_states[ipl_id] = ipl_state;
-    MLAG_LOG(MLAG_LOG_DEBUG, "IPL [%d] state change to [%u]\n", ipl_id,
+    MLAG_LOG(MLAG_LOG_NOTICE, "IPL [%d] state change to [%u]\n", ipl_id,
              ipl_state);
 
     for (i = 0; i < MLAG_MAX_PEERS; i++) {
@@ -755,8 +766,9 @@ health_manager_ipl_state_get(int ipl_id)
 
     if (ipl_id >= MLAG_MAX_IPLS) {
         MLAG_LOG(
-                MLAG_LOG_ERROR, "Trying to get IPL state with IPL ID %d which is higher than the max value (%d)\n",
-                ipl_id, MLAG_MAX_IPLS);
+            MLAG_LOG_ERROR,
+            "Trying to get IPL state with IPL ID %d which is higher than the max value (%d)\n",
+            ipl_id, MLAG_MAX_IPLS);
         goto bail;
     }
 
@@ -888,7 +900,8 @@ bail:
  *
  * @return 0 when successful, otherwise ERROR
  */
-int health_manager_counters_get(struct mlag_counters *counters)
+int
+health_manager_counters_get(struct mlag_counters *counters)
 {
     int err = 0;
     int i = 0;
@@ -897,11 +910,13 @@ int health_manager_counters_get(struct mlag_counters *counters)
     ASSERT(counters != NULL);
 
     /* assume zero represent local machine */
-    for(i = 0; i < MLAG_MAX_PEERS; i++) {
+    for (i = 0; i < MLAG_MAX_PEERS; i++) {
         /* check if peer exists */
         if (mlag_manager_is_peer_valid(i)) {
-            err = heartbeat_peer_stats_get(mlag_health_fsm[i].peer_id, &hb_stats);
-            MLAG_BAIL_ERROR_MSG(err, "Failed to get peer [%d] heartbeat stats\n",
+            err = heartbeat_peer_stats_get(mlag_health_fsm[i].peer_id,
+                                           &hb_stats);
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failed to get peer [%d] heartbeat stats\n",
                                 mlag_health_fsm[i].peer_id);
 
             counters->tx_heartbeat += hb_stats.tx_heartbeat;
@@ -925,7 +940,7 @@ mlag_health_manager_counters_clear(void)
     int i = 0;
 
     /* assume zero represent local machine */
-    for(i = 0; i < MLAG_MAX_PEERS; i++) {
+    for (i = 0; i < MLAG_MAX_PEERS; i++) {
         if (mlag_manager_is_peer_valid(i)) {
             err = heartbeat_peer_stats_clear(mlag_health_fsm[i].peer_id);
             if (err) {
@@ -956,7 +971,8 @@ health_manager_role_change(struct switch_status_change_event_data *role_change)
     if (role_change->current_status != STANDALONE) {
         for (i = 0; i < MLAG_MAX_PEERS; i++) {
             err = health_fsm_role_change_ev(&mlag_health_fsm[i]);
-            MLAG_BAIL_ERROR_MSG(err, "Failure handling role change in health FSM\n");
+            MLAG_BAIL_ERROR_MSG(err,
+                                "Failure handling role change in health FSM\n");
         }
     }
 

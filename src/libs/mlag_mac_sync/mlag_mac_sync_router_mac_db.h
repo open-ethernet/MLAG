@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_MAC_SYNC_ROUTER_MAC_DB_H_
 #define MLAG_MAC_SYNC_ROUTER_MAC_DB_H_
@@ -39,25 +39,24 @@
 /************************************************
  *  Type definitions
  ***********************************************/
-enum router_mac_action{
-	ADD_ROUTER_MAC = 0,
-	REMOVE_ROUTER_MAC
+enum router_mac_action {
+    ADD_ROUTER_MAC = 0,
+    REMOVE_ROUTER_MAC
 };
 
 
-struct router_db_entry{
-	 cl_map_item_t          map_item;   /* map overhead */
-	 unsigned short         vid;        /*  Vlan id */
-	 struct ether_addr      mac_addr;   /* mac address */
-	 int                    sync_status;/* synchronization status */
-     enum router_mac_action last_action;/* add or remove action */
-     void                   *cookie;    /* pointer to master logic instance */
-
+struct router_db_entry {
+    cl_map_item_t map_item;             /* map overhead */
+    unsigned short vid;                 /*  Vlan id */
+    struct ether_addr mac_addr;         /* mac address */
+    int sync_status;                    /* synchronization status */
+    enum router_mac_action last_action; /* add or remove action */
+    void                   *cookie;     /* pointer to master logic instance */
 };
 
 
 typedef int (*router_mac_cookie_init_deinit_func)( enum cookie_op,
-                                                  void** cookie);
+                                                   void** cookie);
 
 
 /************************************************
@@ -67,14 +66,25 @@ typedef int (*router_mac_cookie_init_deinit_func)( enum cookie_op,
 /************************************************
  *  Function declarations
  ***********************************************/
+
+/**
+ *  This function sets module log verbosity level
+ *
+ *  @param verbosity - new log verbosity
+ *
+ * @return void
+ */
+void
+mlag_mac_sync_router_mac_db_log_verbosity_set(mlag_verbosity_t verbosity);
+
 /**
  *  This function registers init_deinit callback function
  * @param[in]  func - callback to init_deinit function
  * @return 0 when successful, otherwise ERROR
  */
 int
-mlag_mac_sync_router_mac_db_register_cookie_func
-                  (router_mac_cookie_init_deinit_func func);
+mlag_mac_sync_router_mac_db_register_cookie_func(
+    router_mac_cookie_init_deinit_func func);
 /**
  *  This function initializes router mac database
  *
@@ -107,7 +117,7 @@ int mlag_mac_sync_router_mac_db_conf(uint8_t *data);
  * @return 0 when successful, otherwise ERROR
  */
 int mlag_mac_sync_router_mac_db_add( struct ether_addr mac,
-		                             unsigned short    vid);
+                                     unsigned short vid);
 
 /**
  * This function processes  response of Mac sync regarding
@@ -120,8 +130,8 @@ int mlag_mac_sync_router_mac_db_add( struct ether_addr mac,
  * @return 0 operation completes successfully
  * @return   -EPERM  in case general error
  */
-int mlag_mac_sync_router_mac_db_remove( struct ether_addr  mac,
-		                                unsigned short     vid);
+int mlag_mac_sync_router_mac_db_remove( struct ether_addr mac,
+                                        unsigned short vid);
 
 /**
  *  This function fetches all router macs from the router mac db
@@ -151,8 +161,8 @@ int mlag_mac_sync_router_mac_db_set_not_sync(void);
  * @return 0 operation completes successfully
  * @return   -EPERM  in case general error
  */
-int mlag_mac_sync_router_mac_db_sync_response( struct ether_addr  mac,
-                                               unsigned short     vid,
+int mlag_mac_sync_router_mac_db_sync_response( struct ether_addr mac,
+                                               unsigned short vid,
                                                enum router_mac_action action);
 
 
@@ -167,9 +177,7 @@ int mlag_mac_sync_router_mac_db_sync_response( struct ether_addr  mac,
  * @return 0 operation completes successfully
  * @return   -EPERM  in case general error
  */
-int mlag_mac_sync_router_mac_db_get  ( struct ether_addr mac,
-		                               unsigned short    vid,
-		                               struct router_db_entry **old_entry
+int mlag_mac_sync_router_mac_db_get( struct ether_addr mac, unsigned short vid, struct router_db_entry **old_entry
                                      );
 
 /**
@@ -192,8 +200,8 @@ int mlag_mac_sync_router_mac_db_first_record(struct router_db_entry **item_pp);
  * @return -EPERM   general error
  */
 int mlag_mac_sync_router_mac_db_next_record(
-		                      struct router_db_entry * input_item_p,
-		                      struct router_db_entry **return_item_p);
+    struct router_db_entry * input_item_p,
+    struct router_db_entry **return_item_p);
 
 
 /**

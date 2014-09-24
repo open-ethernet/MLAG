@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -101,7 +101,8 @@ default
           { peer_up_ev     , $ fsm->conn_state == UP $    , peering  ,  on_peer_up() }
           { peer_up_ev     , $ else $                     , IN_STATE ,  on_peer_up() }
           { peer_conn_ev   , $ fsm->peer_state == UP $    , peering  ,  on_peer_conn() }
-          { peer_conn_ev   , $ else $                     , IN_STATE  ,  on_peer_conn() }
+          { peer_conn_ev   , $ else $                     , IN_STATE ,  on_peer_conn() }
+          { peer_down_ev   , NULL                         , IN_STATE ,  configure_init()  }
   }
 }
 // ***********************************
@@ -263,14 +264,14 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
          SET_EVENT(mlag_peering_fsm , peer_up_ev)
          if(  fsm->conn_state == UP  )
          {/*tr00:*/
-            err = on_peer_up( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 88*/ 
+            err = on_peer_up( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 101*/ 
             *target_state =  &state_mlag_peering_fsm_peering;
             return err;
          }
          else
          {/*tr01:*/
            fsm->base.reaction_in_state = 1;
-           err = on_peer_up( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 89*/ 
+           err = on_peer_up( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 102*/ 
             *target_state =  &state_mlag_peering_fsm_configured;
             return err;
          }
@@ -281,14 +282,25 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
          SET_EVENT(mlag_peering_fsm , peer_conn_ev)
          if(  fsm->peer_state == UP  )
          {/*tr02:*/
-            err = on_peer_conn( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 90*/ 
+            err = on_peer_conn( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 103*/ 
             *target_state =  &state_mlag_peering_fsm_peering;
             return err;
          }
          else
          {/*tr03:*/
            fsm->base.reaction_in_state = 1;
-           err = on_peer_conn( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 91*/ 
+           err = on_peer_conn( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 104*/ 
+            *target_state =  &state_mlag_peering_fsm_configured;
+            return err;
+         }
+      }
+
+      else if ( event->opcode == peer_down_ev )
+      {
+         SET_EVENT(mlag_peering_fsm , peer_down_ev)
+         {/*tr04:*/
+           fsm->base.reaction_in_state = 1;
+           err = configure_init( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 105*/ 
             *target_state =  &state_mlag_peering_fsm_configured;
             return err;
          }
@@ -302,7 +314,7 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
       {
          SET_EVENT(mlag_peering_fsm , peer_down_ev)
          {/*tr10:*/
-            err = configure_init( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 98*/ 
+            err = configure_init( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 112*/ 
             *target_state =  &state_mlag_peering_fsm_configured;
             return err;
          }
@@ -313,7 +325,7 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
          SET_EVENT(mlag_peering_fsm , peer_conn_ev)
          {/*tr11:*/
            fsm->base.reaction_in_state = 1;
-           err = on_peer_reconnect( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 99*/ 
+           err = on_peer_reconnect( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 113*/ 
             *target_state =  &state_mlag_peering_fsm_peering;
             return err;
          }
@@ -324,14 +336,14 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
          SET_EVENT(mlag_peering_fsm , sync_arrived_ev)
          if(  is_all_sync_arrived(fsm, ev->sync_type)  )
          {/*tr12:*/
-              /* Source line = 100*/ 
+              /* Source line = 114*/ 
             *target_state =  &state_mlag_peering_fsm_peer_up;
             return err;
          }
          else
          {/*tr13:*/
            fsm->base.reaction_in_state = 1;
-             /* Source line = 101*/ 
+             /* Source line = 115*/ 
             *target_state =  &state_mlag_peering_fsm_peering;
             return err;
          }
@@ -345,7 +357,7 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
       {
          SET_EVENT(mlag_peering_fsm , peer_down_ev)
          {/*tr20:*/
-            err = configure_init( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 109*/ 
+            err = configure_init( fsm, DEFAULT_PARAMS_D, evt);  /* Source line = 123*/ 
             *target_state =  &state_mlag_peering_fsm_configured;
             return err;
          }
@@ -356,7 +368,7 @@ static int mlag_peering_fsm_state_dispatcher( mlag_peering_fsm  * fsm, uint16 st
          SET_EVENT(mlag_peering_fsm , sync_arrived_ev)
          {/*tr21:*/
            fsm->base.reaction_in_state = 1;
-             /* Source line = 110*/ 
+             /* Source line = 124*/ 
             *target_state =  &state_mlag_peering_fsm_peer_up;
             return err;
          }
@@ -417,7 +429,7 @@ static  int on_peer_reconnect (mlag_peering_fsm  * fsm, int parameter, struct fs
 
 
 */
-/*   10310*/
+/*   10684*/
 
 /*#$*/
 
@@ -446,6 +458,12 @@ static int
 is_all_sync_arrived(mlag_peering_fsm *fsm, int sync_type)
 {
     fsm->sync_states |= sync_type;
+    if (fsm->igmp_enabled == FALSE) {
+        fsm->sync_states |= IGMP_PEER_SYNC;
+    }
+    if (fsm->lacp_enabled == FALSE) {
+        fsm->sync_states |= LACP_PEER_SYNC;
+    }
     if ((fsm->sync_states & ALL_PEER_SYNC) == ALL_PEER_SYNC) {
         return TRUE;
     }

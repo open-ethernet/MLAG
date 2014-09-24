@@ -23,7 +23,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #include <errno.h>
 #include <complib/cl_init.h>
@@ -140,8 +140,8 @@ mlag_l3_interface_init(insert_to_command_db_func insert_msgs)
     int err = 0;
 
     if (is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface init called twice\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "l3 interface init called twice\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface init\n");
@@ -177,8 +177,8 @@ mlag_l3_interface_deinit(void)
     int err = 0;
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface deinit called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "l3 interface deinit called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface deinit\n");
@@ -203,8 +203,8 @@ mlag_l3_interface_start(uint8_t *data)
     UNUSED_PARAM(data);
 
     if (!is_inited) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "l3 interface start called before init\n");
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err, "l3 interface start called before init\n");
     }
 
     MLAG_LOG(MLAG_LOG_NOTICE, "l3 interface start\n");
@@ -219,7 +219,7 @@ mlag_l3_interface_start(uint8_t *data)
 
     err = mlag_l3_interface_peer_start(NULL);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to start l3 interface peer, err=%d\n", err);
+                        "Failed to start l3 interface peer, err=%d\n", err);
 
 bail:
     return err;
@@ -250,14 +250,14 @@ mlag_l3_interface_stop(uint8_t *data)
 
     err = mlag_l3_interface_peer_stop(NULL);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to stop peer, err=%d\n",
-    		err);
+                        "Failed to stop peer, err=%d\n",
+                        err);
 
     if (current_switch_status == MASTER) {
         err = mlag_l3_interface_master_logic_stop(NULL);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed to stop master logic, err=%d\n",
-        		err);
+                            "Failed to stop master logic, err=%d\n",
+                            err);
     }
     current_switch_status = DEFAULT_SWITCH_STATUS;
 
@@ -388,20 +388,21 @@ mlag_l3_interface_peer_status_change(struct peer_state_change_data *data)
     ASSERT(data);
 
     if (!is_started) {
-        MLAG_LOG(MLAG_LOG_NOTICE,
+        MLAG_LOG(MLAG_LOG_INFO,
                  "Peer status change event ignored before start: mlag_id=%d, state=%d\n",
                  data->mlag_id, data->state);
         goto bail;
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE,
+    MLAG_LOG(MLAG_LOG_INFO,
              "Peer %d changed status to %s\n",
              data->mlag_id, health_state_str[data->state]);
 
     if (!(((data->mlag_id >= 0) &&
-    	 (data->mlag_id < MLAG_MAX_PEERS)))) {
-    	err = ECANCELED;
-    	MLAG_BAIL_ERROR_MSG(err, "Invalid parameter in peer status change event\n");
+           (data->mlag_id < MLAG_MAX_PEERS)))) {
+        err = ECANCELED;
+        MLAG_BAIL_ERROR_MSG(err,
+                            "Invalid parameter in peer status change event\n");
     }
 
     L3_INTERFACE_INC_CNT(L3_INTERFACE_PEER_STATE_CHANGE_EVENTS_RCVD);
@@ -458,14 +459,15 @@ mlag_l3_interface_peer_start_event(struct peer_state_change_data *data)
         sync_done.sync_type = L3_PEER_SYNC;
 
         err = send_system_event(MLAG_PEER_SYNC_DONE, &sync_done,
-        		sizeof(sync_done));
+                                sizeof(sync_done));
         MLAG_BAIL_ERROR_MSG(err,
                             "Failed to send peer sync done event, err=%d\n",
                             err);
         goto bail;
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "%s: mlag_id=%d\n", __FUNCTION__, data->mlag_id);
+    MLAG_LOG(MLAG_LOG_NOTICE, "Peer start handle : mlag_id=%d\n",
+             data->mlag_id);
 
     L3_INTERFACE_INC_CNT(L3_INTERFACE_PEER_START_EVENTS_RCVD);
 
@@ -490,7 +492,6 @@ mlag_l3_interface_peer_enable(struct peer_state_change_data *data)
     int err = 0;
 
     if (current_switch_status == MASTER) {
-
         err = mlag_l3_interface_master_logic_peer_enable(data);
         MLAG_BAIL_ERROR_MSG(err,
                             "Failed in master logic peer enable, err=%d\n",
@@ -533,8 +534,8 @@ rcv_msg_handler(uint8_t *data)
             (struct sync_event_data*)msg_data;
         err = mlag_l3_interface_sync_start(ev);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in handling of sync start event, err=%d\n",
-        		err);
+                            "Failed in handling of sync start event, err=%d\n",
+                            err);
     }
     break;
     case MLAG_L3_SYNC_FINISH_EVENT: {
@@ -542,23 +543,23 @@ rcv_msg_handler(uint8_t *data)
             (struct sync_event_data*)msg_data;
         err = mlag_l3_interface_sync_finish(ev);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in handling of sync finish event, err=%d\n",
-        		err);
+                            "Failed in handling of sync finish event, err=%d\n",
+                            err);
     }
     break;
     case MLAG_L3_INTERFACE_MASTER_SYNC_DONE_EVENT:
         err = mlag_l3_interface_master_sync_done(NULL);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in handling of master sync done event, err=%d\n",
-        		err);
+                            "Failed in handling of master sync done event, err=%d\n",
+                            err);
         break;
     case MLAG_L3_INTERFACE_VLAN_LOCAL_STATE_CHANGE_FROM_PEER_EVENT: {
         struct vlan_state_change_event_data *ev =
             (struct vlan_state_change_event_data*)msg_data;
         err = mlag_l3_interface_vlan_state_change_from_peer(ev);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in handling of vlan state change event from peer, err=%d\n",
-        		err);
+                            "Failed in handling of vlan state change event from peer, err=%d\n",
+                            err);
     }
     break;
     case MLAG_L3_INTERFACE_VLAN_GLOBAL_STATE_CHANGE_EVENT: {
@@ -566,14 +567,14 @@ rcv_msg_handler(uint8_t *data)
             (struct vlan_state_change_event_data*)msg_data;
         err = mlag_l3_interface_vlan_global_state_change(ev);
         MLAG_BAIL_ERROR_MSG(err,
-        		"Failed in handling of vlan global state change event, err=%d\n",
-        		err);
+                            "Failed in handling of vlan global state change event, err=%d\n",
+                            err);
     }
     break;
     default:
         /* Unknown opcode */
         MLAG_LOG(MLAG_LOG_NOTICE,
-        		 "Unknown event %d\n",
+                 "Unknown event %d\n",
                  opcode);
         break;
     }
@@ -634,7 +635,7 @@ net_order_msg_handler(uint8_t *data, int oper)
     }
     break;
     case MLAG_L3_INTERFACE_MASTER_SYNC_DONE_EVENT:
-    	/* nothing to do */
+        /* nothing to do */
         break;
     case MLAG_L3_INTERFACE_VLAN_LOCAL_STATE_CHANGE_FROM_PEER_EVENT: {
         struct vlan_state_change_event_data *ev =
@@ -673,7 +674,7 @@ net_order_msg_handler(uint8_t *data, int oper)
     default:
         /* Unknown opcode */
         MLAG_LOG(MLAG_LOG_NOTICE,
-        		 "Unknown event %d in network ordering handler\n",
+                 "Unknown event %d in network ordering handler\n",
                  opcode);
         break;
     }
@@ -704,27 +705,27 @@ mlag_l3_interface_switch_status_change(
     err = mlag_master_election_get_switch_status_str(data->current_status,
                                                      &current_status_str);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get master election current switch role string, err=%d\n",
-    		err);
+                        "Failed to get master election current switch role string, err=%d\n",
+                        err);
     err = mlag_master_election_get_switch_status_str(data->previous_status,
                                                      &previous_status_str);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get master election previous switch role string, err=%d\n",
-    		err);
+                        "Failed to get master election previous switch role string, err=%d\n",
+                        err);
     err = mlag_master_election_get_switch_status_str(current_switch_status,
                                                      &l3_current_status_str);
     MLAG_BAIL_ERROR_MSG(err,
-    		"Failed to get l3 interface current switch role string, err=%d\n",
-    		err);
+                        "Failed to get l3 interface current switch role string, err=%d\n",
+                        err);
 
     if (!is_started) {
-        MLAG_LOG(MLAG_LOG_NOTICE,
+        MLAG_LOG(MLAG_LOG_INFO,
                  "Role change event accepted before start: current=%s, previous=%s\n",
                  current_status_str, previous_status_str);
         goto bail;
     }
 
-    MLAG_LOG(MLAG_LOG_NOTICE, "Role changed from %s to %s\n",
+    MLAG_LOG(MLAG_LOG_INFO, "Role changed from %s to %s\n",
              previous_status_str, current_status_str);
 
     L3_INTERFACE_INC_CNT(L3_INTERFACE_SWITCH_STATUS_CHANGE_EVENTS_RCVD);
@@ -742,8 +743,8 @@ mlag_l3_interface_switch_status_change(
         if (current_switch_status == MASTER) {
             err = mlag_l3_interface_master_logic_start(NULL);
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed to start master logic, err=%d\n",
-            		err);
+                                "Failed to start master logic, err=%d\n",
+                                err);
         }
     }
     else {
@@ -757,21 +758,21 @@ mlag_l3_interface_switch_status_change(
 
             err = mlag_l3_interface_stop(NULL);
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed to stop module, err=%d\n",
-            		err);
+                                "Failed to stop module, err=%d\n",
+                                err);
 
             err = mlag_l3_interface_start(NULL);
             MLAG_BAIL_ERROR_MSG(err,
-            		"Failed to start module, err=%d\n",
-            		err);
+                                "Failed to start module, err=%d\n",
+                                err);
 
             current_switch_status = data->current_status;
 
             if (current_switch_status == MASTER) {
                 err = mlag_l3_interface_master_logic_start(NULL);
                 MLAG_BAIL_ERROR_MSG(err,
-                		"Failed to start master logic, err=%d\n",
-                		err);
+                                    "Failed to start master logic, err=%d\n",
+                                    err);
             }
         }
     }
@@ -817,13 +818,14 @@ int
 mlag_l3_interface_dump(void (*dump_cb)(const char *, ...))
 {
     if (dump_cb == NULL) {
-    	MLAG_LOG(MLAG_LOG_NOTICE,
-    			"=================\nL3 interface manager dump\n=================\n");
+        MLAG_LOG(MLAG_LOG_NOTICE,
+                 "=================\nL3 interface manager dump\n=================\n");
         MLAG_LOG(MLAG_LOG_NOTICE, "is_initialized=%d, is_started=%d\n",
                  is_inited, is_started);
     }
     else {
-    	dump_cb("=================\nL3 interface manager dump\n=================\n");
+        dump_cb(
+            "=================\nL3 interface manager dump\n=================\n");
         dump_cb("is_initializes=%d, is_started=%d\n",
                 is_inited, is_started);
     }

@@ -15,6 +15,7 @@ INCLUDES =	-I$(top_srcdir) \
 			-I$(top_srcdir)/src/libs/health_manager \
 			-I$(top_srcdir)/src/libs/mlag_master_election \
 			-I$(top_srcdir)/src/libs/mlag_topology/ \
+			-I$(top_srcdir)/src/libs/port_manager/ \
 			-I$(MLNX_LIB_PATH)/include/mlnx_lib
 
 if DEBUG

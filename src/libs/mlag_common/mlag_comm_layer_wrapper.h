@@ -23,12 +23,13 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- */ 
+ */
 
 #ifndef MLAG_COMM_LAYER_WRAPPER_H_
 #define MLAG_COMM_LAYER_WRAPPER_H_
 
 #include <complib/cl_timer.h>
+#include <pthread.h>
 
 /************************************************
  *  Defines
@@ -100,7 +101,8 @@ struct mlag_comm_layer_wrapper_data {
     int reconnect_timer_msec;
     int reconnect_timer_started;
     enum comm_socket_protection protect_socket;
-    cl_plock_t socket_mutex;
+    /*cl_plock_t socket_mutex;*/
+    pthread_mutex_t socket_mutex;
 };
 
 /************************************************
